@@ -1,0 +1,37 @@
+import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, Max, IsObject } from 'class-validator';
+
+export class CreateProjectDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Project name is required' })
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsString()
+  @IsOptional()
+  gitUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  dockerImage?: string;
+
+  @IsString()
+  @IsOptional()
+  branch?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  @Max(65535)
+  port?: number;
+
+  @IsString()
+  @IsOptional()
+  domain?: string;
+
+  @IsObject()
+  @IsOptional()
+  envVariables?: Record<string, string>;
+}
