@@ -1,0 +1,135 @@
+<div class="project-layout">
+  <!-- Top Navigation Header -->
+  <header class="topbar">
+    <div class="nav-left">
+      <a routerLink="/dashboard" class="back-link">← Back to Dashboard</a>
+      <span class="separator">/</span>
+      <h2>{{ project()?.name || 'Loading Project...' }}</h2>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <button class="delete-btn-ui" (click)="onDeleteProject()">
+        🗑️ Delete Project
+      </button>
+      <button class="deploy-btn" [disabled]="triggerLoading()" (click)="onTriggerDeployment()">
+        @if (triggerLoading()) {
+          Deploying...
+        } @else {
+          Deploy Now
+        }
+      </button>
+    </div>
+  </header>
+
+  <!-- Split Panel Content -->
+  <div class="split-panel">
+    <!-- Sidebar: Deployment History -->
+    <aside class="sidebar glass-card">
+      <div class="sidebar-header">
+        <h3>Deployment History</h3>
+      </div>
+      
+      @if (deploymentsLoading()) {
+        <div class="loading-state">
+          <span class="spinner"></span>
+        </div>
+      } @else {
+        @if (deployments().length === 0) {
+          <div class="empty-state">
+            <p>No deployments yet.</p>
+          </div>
+        } @else {
+          <div class="deployment-list">
+            @for (dep of deployments(); track dep._id) {
+              <div
+                class="deployment-item"
+                [class.active]="selectedDeployment()?._id === dep._id"
+                (click)="selectDeployment(dep)"
+              >
+                <div class="item-header">
+                  <span class="status-indicator" [class]="dep.status.toLowerCase()"></span>
+                  <span class="commit-id">#{{ dep._id.substring(18) }}</span>
+                </div>
+                <div class="item-meta">
+                  <span class="date">{{ dep.createdAt | date:'short' }}</span>
+                  <span class="status-text">{{ dep.status }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+    </aside>
+
+    <!-- Main View: Configuration & Console Logs -->
+    <main class="main-view">
+      <!-- Upper Config Card -->
+      <section class="config-banner glass-card">
+        <h3>Configuration</h3>
+        <div class="config-grid">
+          @if (project()?.dockerImage) {
+            <div class="config-item">
+              <span class="label">Docker Image:</span>
+              <span class="val">{{ project()?.dockerImage }}</span>
+            </div>
+          } @else {
+            <div class="config-item">
+              <span class="label">Repository:</span>
+              <span class="val">{{ project()?.gitUrl }}</span>
+            </div>
+            <div class="config-item">
+              <span class="label">Branch:</span>
+              <span class="val">{{ project()?.branch }}</span>
+            </div>
+          }
+          <div class="config-item">
+            <span class="label">Internal Port:</span>
+            <span class="val">{{ project()?.port }}</span>
+          </div>
+          @if (project()?.domain) {
+            <div class="config-item">
+              <span class="label">Domain URL:</span>
+              <span class="val">{{ project()?.domain }}</span>
+            </div>
+          }
+          <div class="config-item">
+            <span class="label">Created:</span>
+            <span class="val">{{ project()?.createdAt | date:'medium' }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Terminal logs console -->
+      <section class="console-section glass-card">
+        <div class="console-header">
+          <div class="header-left">
+            <span class="title">Deployment Logs</span>
+            @if (selectedDeployment()) {
+              <span class="selected-id">Showing #{{ selectedDeployment()?._id?.substring(18) }}</span>
+            }
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            @if (selectedDeployment()?.logs) {
+              <button class="copy-logs-btn" (click)="copyLogs()">
+                📋 {{ copyText() }}
+              </button>
+            }
+            @if (selectedDeployment() && selectedDeployment()?.status !== 'PENDING' && selectedDeployment()?.status !== 'BUILDING' && !triggerLoading()) {
+              <button class="rollback-btn-ui" (click)="onRollback(selectedDeployment()?._id!)">
+                🔄 Revert to this version
+              </button>
+            }
+          </div>
+        </div>
+        <div class="console-body">
+          @if (selectedDeployment()) {
+            <pre class="terminal-logs"><code>{{ selectedDeployment()?.logs }}</code></pre>
+          } @else {
+            <div class="no-logs">
+              <p>Select a deployment from the history sidebar to view execution logs.</p>
+            </div>
+          }
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

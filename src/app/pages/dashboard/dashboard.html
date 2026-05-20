@@ -1,0 +1,329 @@
+<div class="dashboard-layout">
+  <!-- Top Navigation Header -->
+  <header class="topbar">
+    <div class="logo">
+      <span class="pulse-dot"></span>
+      <h2>LaunchPad</h2>
+    </div>
+    <div class="user-profile">
+      <span class="email">{{ authService.currentUser()?.email }}</span>
+      <button class="logout-btn" (click)="authService.logout()">Log Out</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+    <div class="content-header">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">Deploy, monitor, and manage your infrastructure.</p>
+      </div>
+      @if (activeTab() === 'apps') {
+        <button class="action-btn" (click)="toggleCreateForm()">
+          {{ showCreateForm() ? 'Cancel' : 'New Project' }}
+        </button>
+      }
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn" [class.active]="activeTab() === 'apps'" (click)="setTab('apps')">
+        Applications
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'docker'" (click)="setTab('docker')">
+        Docker Engine
+      </button>
+    </div>
+
+    <!-- TAB 1: Applications -->
+    @if (activeTab() === 'apps') {
+      <!-- Create Project Form -->
+      @if (showCreateForm()) {
+        <div class="create-card glass-card">
+          <h3>Create New Project</h3>
+          
+          <!-- Source Toggle Selector -->
+          <div class="source-toggle">
+            <button type="button" class="toggle-choice" [class.selected]="deploySource() === 'git'" (click)="setDeploySource('git')">
+              📁 Deploy from Git Repository
+            </button>
+            <button type="button" class="toggle-choice" [class.selected]="deploySource() === 'image'" (click)="setDeploySource('image')">
+              🐳 Deploy from Docker Image
+            </button>
+          </div>
+
+          <form (submit)="onCreateProject(); $event.preventDefault()">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="name">App Name</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  [(ngModel)]="newProjectName"
+                  placeholder="my-node-service"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="port">Internal Container Port</label>
+                <input
+                  type="number"
+                  id="port"
+                  name="port"
+                  [(ngModel)]="newProjectPort"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="domain">Domain Name / Subdomain (Optional)</label>
+              <input
+                type="text"
+                id="domain"
+                name="domain"
+                [(ngModel)]="newProjectDomain"
+                placeholder="my-app.launchpad.local"
+              />
+            </div>
+
+            <!-- GIT SOURCE FIELDS -->
+            @if (deploySource() === 'git') {
+              <div class="form-group">
+                <label for="gitUrl">Git Repository URL (HTTPS)</label>
+                <input
+                  type="text"
+                  id="gitUrl"
+                  name="gitUrl"
+                  [(ngModel)]="newProjectGitUrl"
+                  placeholder="https://github.com/username/repository.git"
+                  required
+                />
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="branch">Target Branch</label>
+                  <input
+                    type="text"
+                    id="branch"
+                    name="branch"
+                    [(ngModel)]="newProjectBranch"
+                    placeholder="main"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="description">Description</label>
+                  <input
+                    type="text"
+                    id="description"
+                    name="description"
+                    [(ngModel)]="newProjectDesc"
+                    placeholder="Production api server"
+                  />
+                </div>
+              </div>
+            }
+
+            <!-- DOCKER IMAGE SOURCE FIELDS -->
+            @if (deploySource() === 'image') {
+              <div class="form-group">
+                <label for="dockerImage">Docker Image Tag</label>
+                <input
+                  type="text"
+                  id="dockerImage"
+                  name="dockerImage"
+                  [(ngModel)]="newProjectImage"
+                  placeholder="nginx:alpine or redis:alpine or mongo:7.0"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="description">Description</label>
+                <input
+                  type="text"
+                  id="description"
+                  name="description"
+                  [(ngModel)]="newProjectDesc"
+                  placeholder="Seeded cache / server container"
+                />
+              </div>
+            }
+
+            @if (createError()) {
+              <div class="error-banner">{{ createError() }}</div>
+            }
+
+            <div class="form-actions">
+              <button type="button" class="cancel-btn" (click)="toggleCreateForm()">Cancel</button>
+              <button type="submit" class="submit-btn" [disabled]="createLoading()">
+                @if (createLoading()) {
+                  Creating...
+                } @else {
+                  Create Application
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      }
+
+      <!-- Applications List -->
+      @if (loadingApps()) {
+        <div class="loading-state">
+          <span class="spinner large"></span>
+          <p>Fetching active applications...</p>
+        </div>
+      } @else {
+        @if (projects().length === 0) {
+          <div class="empty-state glass-card">
+            <div class="empty-icon">📁</div>
+            <h3>No applications yet</h3>
+            <p>Get started by registering a repository or directly deploying a pre-built Docker image.</p>
+            <button class="action-btn" (click)="toggleCreateForm()">Create One Now</button>
+          </div>
+        } @else {
+          <div class="projects-grid">
+            @for (project of projects(); track project._id) {
+              <div class="project-card glass-card" [routerLink]="['/project', project._id]">
+                <div class="card-header">
+                  <h3>{{ project.name }}</h3>
+                  <span class="badge active">active</span>
+                </div>
+                <p class="description">{{ project.description || 'No description provided' }}</p>
+                
+                <div class="meta-section">
+                  @if (project.domain) {
+                    <div class="meta-item">
+                      <span class="label">Domain:</span>
+                      <span class="val truncate">{{ project.domain }}</span>
+                    </div>
+                  }
+                  @if (project.dockerImage) {
+                    <div class="meta-item">
+                      <span class="label">Image:</span>
+                      <span class="val truncate">{{ project.dockerImage }}</span>
+                    </div>
+                  } @else {
+                    <div class="meta-item">
+                      <span class="label">Repo:</span>
+                      <span class="val truncate">{{ project.gitUrl }}</span>
+                    </div>
+                    <div class="meta-grid">
+                      <div class="meta-item">
+                        <span class="label">Branch:</span>
+                        <span class="val">{{ project.branch }}</span>
+                      </div>
+                      <div class="meta-item">
+                        <span class="label">Port:</span>
+                        <span class="val">{{ project.port }}</span>
+                      </div>
+                    </div>
+                  }
+                </div>
+                <div class="card-footer">
+                  <span class="details-link">Manage Deployment →</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+    }
+
+    <!-- TAB 2: Docker Engine -->
+    @if (activeTab() === 'docker') {
+      <div class="docker-header-actions">
+        <button class="refresh-btn" (click)="loadContainers()" [disabled]="loadingDocker()">
+          🔄 Refresh Containers List
+        </button>
+      </div>
+
+      @if (loadingDocker()) {
+        <div class="loading-state">
+          <span class="spinner large"></span>
+          <p>Connecting to Docker daemon...</p>
+        </div>
+      } @else {
+        @if (containers().length === 0) {
+          <div class="empty-state glass-card">
+            <div class="empty-icon">🐳</div>
+            <h3>No containers found</h3>
+            <p>Ensure Docker daemon is running and correct permission/group settings are configured.</p>
+          </div>
+        } @else {
+          <div class="docker-table-container glass-card">
+            <table class="docker-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Image</th>
+                  <th>State</th>
+                  <th>Status</th>
+                  <th>Ports</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of containers(); track c.id) {
+                  <tr>
+                    <td class="container-name">{{ c.names[0] || c.id.substring(0, 12) }}</td>
+                    <td class="container-image">{{ c.image }}</td>
+                    <td>
+                      <span class="state-badge" [class]="c.state">
+                        {{ c.state }}
+                      </span>
+                    </td>
+                    <td class="container-status">{{ c.status }}</td>
+                    <td class="container-ports">
+                      @for (p of c.ports; track p.PrivatePort) {
+                        <div>{{ p.IP || '0.0.0.0' }}:{{ p.PublicPort }}➔{{ p.PrivatePort }}</div>
+                      } @empty {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <div class="btn-group">
+                        @if (c.state !== 'running') {
+                          <button class="ctrl-btn start" (click)="startContainer(c.id)">Start</button>
+                        } @else {
+                          <button class="ctrl-btn stop" (click)="stopContainer(c.id)">Stop</button>
+                        }
+                        <button class="ctrl-btn restart" (click)="restartContainer(c.id)">Restart</button>
+                        <button class="ctrl-btn logs" (click)="viewContainerLogs(c)">Logs</button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    }
+  </main>
+
+  <!-- Logs Overlay Modal -->
+  @if (selectedContainerLogs() !== null) {
+    <div class="modal-backdrop" (click)="closeLogsModal()">
+      <div class="modal-card glass-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Container Logs: {{ selectedContainerName() }}</h3>
+          <button class="close-btn" (click)="closeLogsModal()">×</button>
+        </div>
+        <div class="modal-body">
+          @if (loadingLogs()) {
+            <div class="loading-state">
+              <span class="spinner"></span>
+            </div>
+          } @else {
+            <pre class="terminal-logs"><code>{{ selectedContainerLogs() }}</code></pre>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,55 @@
+<div class="login-container">
+  <div class="glass-card">
+    <div class="header">
+      <div class="logo">
+        <span class="pulse-dot"></span>
+        <h1>LaunchPad</h1>
+      </div>
+      <p class="subtitle">Self-Hosted DevOps Platform</p>
+    </div>
+
+    <form (submit)="onSubmit(); $event.preventDefault()">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          [(ngModel)]="email"
+          placeholder="you@domain.com"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          [(ngModel)]="password"
+          placeholder="••••••••"
+          required
+        />
+      </div>
+
+      @if (error()) {
+        <div class="error-banner">
+          {{ error() }}
+        </div>
+      }
+
+      <button type="submit" class="submit-btn" [disabled]="loading()">
+        @if (loading()) {
+          <span class="spinner"></span> Logging in...
+        } @else {
+          Login
+        }
+      </button>
+    </form>
+
+    <div class="footer-link">
+      Don't have an account? <a routerLink="/register">Sign Up</a>
+    </div>
+  </div>
+</div>
