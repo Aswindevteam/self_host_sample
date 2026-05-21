@@ -54,4 +54,12 @@ export class UserService {
   updateUserPermissions(userId: string, permissions: { canView: boolean; canEdit: boolean; canDeploy: boolean }): Observable<any> {
     return this.http.put(`${environment.apiUrl}/users/${userId}/permissions`, permissions);
   }
+
+  removeProjectAssignment(assignmentId: string): Observable<any> {
+    return this.http.delete(`${environment.apiUrl}/projects/assignments/${assignmentId}`);
+  }
+
+  updateProjectAssignment(assignmentId: string, permissions: { canView: boolean; canEdit: boolean; canDeploy: boolean }): Observable<any> {
+    return this.http.put(`${environment.apiUrl}/projects/assignments/${assignmentId}`, permissions);
+  }
 }

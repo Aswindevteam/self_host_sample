@@ -62,6 +62,25 @@ export class OrgUsersComponent implements OnInit {
   protected userProjectAssignments = signal<Map<string, ProjectAssignment[]>>(new Map());
   protected loadingAssignments = signal(false);
 
+  // Edit Assignment
+  protected editingAssignmentId = signal<string | null>(null);
+  protected editAssignmentCanView = signal(true);
+  protected editAssignmentCanEdit = signal(true);
+  protected editAssignmentCanDeploy = signal(true);
+  protected editAssignmentLoading = signal(false);
+
+  // Modal Add Project
+  protected modalAddProjectId = signal('');
+  protected modalAddCanView = signal(true);
+  protected modalAddCanEdit = signal(true);
+  protected modalAddCanDeploy = signal(true);
+
+  // Project Search
+  protected projectSearchQuery = signal('');
+  protected filteredProjects = signal<Project[]>([]);
+  protected selectedProjectsToAdd = signal<Project[]>([]);
+  protected showProjectDropdown = signal(false);
+
   // Projects List
   protected projects = signal<Project[]>([]);
   protected loadingProjects = signal(false);
@@ -113,7 +132,7 @@ export class OrgUsersComponent implements OnInit {
         const assignments = data.map((a: any) => ({
           _id: a._id,
           projectId: a.projectId,
-          projectName: a.projectName || a.projectId, // Fallback if projectName not provided
+          projectName: a.projectName || a.projectId,
           canView: a.canView,
           canEdit: a.canEdit,
           canDeploy: a.canDeploy,
@@ -123,12 +142,31 @@ export class OrgUsersComponent implements OnInit {
         this.userProjectAssignments.set(new Map(currentMap));
       },
       error: () => {
-        // If endpoint doesn't exist, set empty assignments
         const currentMap = this.userProjectAssignments();
         currentMap.set(userId, []);
         this.userProjectAssignments.set(new Map(currentMap));
       },
     });
+  }
+
+  getVisibleProjects(userId: string): ProjectAssignment[] {
+    const assignments = this.userProjectAssignments().get(userId) || [];
+    return assignments.slice(0, 3);
+  }
+
+  getHiddenProjectsCount(userId: string): number {
+    const assignments = this.userProjectAssignments().get(userId) || [];
+    return Math.max(0, assignments.length - 3);
+  }
+
+  viewUser(user: OrgUser) {
+    // Navigate to user details or show user info
+    console.log('View user:', user);
+  }
+
+  deployUser(user: OrgUser) {
+    // Navigate to deploy page for this user
+    console.log('Deploy user:', user);
   }
 
   loadProjects() {
@@ -233,10 +271,86 @@ export class OrgUsersComponent implements OnInit {
     this.editSuccess.set('');
   }
 
-  cancelEditUser() {
+  openEditModal(user: OrgUser) {
+    this.startEditUser(user);
+    this.modalAddProjectId.set('');
+    this.modalAddCanView.set(true);
+    this.modalAddCanEdit.set(true);
+    this.modalAddCanDeploy.set(true);
+    this.projectSearchQuery.set('');
+    this.selectedProjectsToAdd.set([]);
+    this.showProjectDropdown.set(false);
+    this.filteredProjects.set(this.projects());
+  }
+
+  filterProjects() {
+    const query = this.projectSearchQuery().toLowerCase();
+    if (!query) {
+      this.filteredProjects.set(this.projects());
+    } else {
+      const filtered = this.projects().filter(p =>
+        p.name.toLowerCase().includes(query)
+      );
+      this.filteredProjects.set(filtered);
+    }
+    this.showProjectDropdown.set(true);
+  }
+
+  isProjectAssigned(projectId: string): boolean {
+    const userId = this.editingUserId();
+    if (!userId) return false;
+    const assignments = this.userProjectAssignments().get(userId) || [];
+    return assignments.some(a => a.projectId === projectId);
+  }
+
+  selectProjectToAdd(project: Project) {
+    if (this.isProjectAssigned(project._id)) return;
+    if (this.selectedProjectsToAdd().some(p => p._id === project._id)) return;
+    this.selectedProjectsToAdd.set([...this.selectedProjectsToAdd(), project]);
+    this.projectSearchQuery.set('');
+    this.showProjectDropdown.set(false);
+  }
+
+  removeProjectFromSelection(projectId: string) {
+    this.selectedProjectsToAdd.set(
+      this.selectedProjectsToAdd().filter(p => p._id !== projectId)
+    );
+  }
+
+  addSelectedProjects() {
+    const userId = this.editingUserId();
+    if (!userId || this.selectedProjectsToAdd().length === 0) return;
+
+    let completed = 0;
+    const total = this.selectedProjectsToAdd().length;
+
+    this.selectedProjectsToAdd().forEach(project => {
+      this.userService.assignProjectToUser({
+        projectId: project._id,
+        userId,
+        canView: this.modalAddCanView(),
+        canEdit: this.modalAddCanEdit(),
+        canDeploy: this.modalAddCanDeploy(),
+      }).subscribe({
+        next: () => {
+          completed++;
+          if (completed === total) {
+            this.selectedProjectsToAdd.set([]);
+            this.loadUserProjectAssignments(userId);
+          }
+        },
+        error: (err) => {
+          alert(err.error?.message || 'Failed to add project.');
+        },
+      });
+    });
+  }
+
+  closeEditModal() {
     this.editingUserId.set(null);
     this.editError.set('');
     this.editSuccess.set('');
+    this.cancelEditAssignment();
   }
 
   onSaveUser() {
@@ -257,7 +371,7 @@ export class OrgUsersComponent implements OnInit {
           next: () => {
             this.editLoading.set(false);
             this.editSuccess.set('User updated successfully!');
-            this.cancelEditUser();
+            this.closeEditModal();
             this.loadUsers();
           },
           error: (err) => {
@@ -269,6 +383,78 @@ export class OrgUsersComponent implements OnInit {
       error: (err) => {
         this.editLoading.set(false);
         this.editError.set(err.error?.message || 'Failed to update user role.');
+      },
+    });
+  }
+
+  onAddProjectFromModal() {
+    const userId = this.editingUserId();
+    const projectId = this.modalAddProjectId();
+    if (!userId || !projectId) {
+      alert('Please select a project');
+      return;
+    }
+
+    this.userService.assignProjectToUser({
+      projectId,
+      userId,
+      canView: this.modalAddCanView(),
+      canEdit: this.modalAddCanEdit(),
+      canDeploy: this.modalAddCanDeploy(),
+    }).subscribe({
+      next: () => {
+        this.modalAddProjectId.set('');
+        this.modalAddCanView.set(true);
+        this.modalAddCanEdit.set(true);
+        this.modalAddCanDeploy.set(true);
+        this.loadUserProjectAssignments(userId);
+      },
+      error: (err) => {
+        alert(err.error?.message || 'Failed to add project.');
+      },
+    });
+  }
+
+  removeAssignment(assignmentId: string, userId: string) {
+    if (!confirm('Are you sure you want to remove this project assignment?')) return;
+
+    this.userService.removeProjectAssignment(assignmentId).subscribe({
+      next: () => {
+        this.loadUserProjectAssignments(userId);
+      },
+      error: (err) => {
+        alert(err.error?.message || 'Failed to remove assignment.');
+      },
+    });
+  }
+
+  startEditAssignment(assignment: ProjectAssignment) {
+    this.editingAssignmentId.set(assignment._id);
+    this.editAssignmentCanView.set(assignment.canView);
+    this.editAssignmentCanEdit.set(assignment.canEdit);
+    this.editAssignmentCanDeploy.set(assignment.canDeploy);
+  }
+
+  cancelEditAssignment() {
+    this.editingAssignmentId.set(null);
+  }
+
+  onSaveAssignment(assignmentId: string, userId: string) {
+    this.editAssignmentLoading.set(true);
+
+    this.userService.updateProjectAssignment(assignmentId, {
+      canView: this.editAssignmentCanView(),
+      canEdit: this.editAssignmentCanEdit(),
+      canDeploy: this.editAssignmentCanDeploy(),
+    }).subscribe({
+      next: () => {
+        this.editAssignmentLoading.set(false);
+        this.cancelEditAssignment();
+        this.loadUserProjectAssignments(userId);
+      },
+      error: (err) => {
+        this.editAssignmentLoading.set(false);
+        alert(err.error?.message || 'Failed to update assignment.');
       },
     });
   }
