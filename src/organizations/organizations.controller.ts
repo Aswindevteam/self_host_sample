@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -22,19 +22,26 @@ export class OrganizationsController {
     return this.orgsService.findAll();
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.USER)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @Request() req: any) {
+    if (req.user.role !== UserRole.ADMIN && req.user.organizationId !== id) {
+      throw new ForbiddenException('You can only access your own organization');
+    }
     return this.orgsService.findOne(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN)
   @Put(':id')
   async update(
     @Param('id') id: string,
+    @Request() req: any,
     @Body('name') name: string,
     @Body('description') description?: string,
   ) {
+    if (req.user.role !== UserRole.ADMIN && req.user.organizationId !== id) {
+      throw new ForbiddenException('You can only update your own organization');
+    }
     return this.orgsService.update(id, { name, description });
   }
 

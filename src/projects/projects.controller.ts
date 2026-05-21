@@ -11,17 +11,17 @@ export class ProjectsController {
 
   @Post()
   async create(@Body() createProjectDto: CreateProjectDto, @Request() req: any) {
-    return this.projectsService.create(createProjectDto, req.user.userId);
+    return this.projectsService.create(createProjectDto, req.user);
   }
 
   @Get()
   async findAll(@Request() req: any) {
-    return this.projectsService.findAll(req.user.userId);
+    return this.projectsService.findAll(req.user);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req: any) {
-    return this.projectsService.findOne(id, req.user.userId);
+    return this.projectsService.findOne(id, req.user);
   }
 
   @Put(':id')
@@ -30,11 +30,11 @@ export class ProjectsController {
     @Body() updateProjectDto: UpdateProjectDto,
     @Request() req: any,
   ) {
-    return this.projectsService.update(id, updateProjectDto, req.user.userId);
+    return this.projectsService.update(id, updateProjectDto, req.user);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req: any) {
-    return this.projectsService.remove(id, req.user.userId);
+    return this.projectsService.remove(id, req.user);
   }
 }

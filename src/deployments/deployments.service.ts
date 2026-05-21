@@ -177,8 +177,41 @@ if (targetDir) {
             else reject(new Error(`Docker build failed with exit code ${code}`));
           });
         });
+      } else if (project.distPath) {
+        await this.updateStatus(deploymentId, DeploymentStatus.BUILDING, 'Preparing dist folder...');
+        fs.mkdirSync(tempDir, { recursive: true });
+
+        await appendLog(`\n[Orchestrator] Copying dist folder from ${project.distPath}...\n`);
+        try {
+          fs.cpSync(project.distPath, tempDir, { recursive: true });
+        } catch (copyErr) {
+          throw new Error(`Failed to copy dist folder: ${copyErr.message}`);
+        }
+
+        // Generate a Dockerfile to serve the static content
+        const dockerfilePath = path.join(tempDir, 'Dockerfile');
+        const dockerfileContent = `FROM node:20-alpine
+WORKDIR /usr/src/app
+RUN npm install -g serve
+COPY . .
+EXPOSE ${project.port}
+CMD ["serve", "-s", ".", "-l", "${project.port}"]
+`;
+        fs.writeFileSync(dockerfilePath, dockerfileContent);
+
+        // Step 3: Docker Build
+        await appendLog(`\n[Orchestrator] Starting Docker image build (${imageName}) from dist folder...\n`);
+        await new Promise<void>((resolve, reject) => {
+          const build = spawn('docker', ['build', '-t', imageName, tempDir]);
+          build.stdout.on('data', (data) => appendLog(data.toString()));
+          build.stderr.on('data', (data) => appendLog(data.toString()));
+          build.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Docker build failed with exit code ${code}`));
+          });
+        });
       } else {
-        throw new Error('Neither Git URL nor Docker image was specified for this project.');
+        throw new Error('Neither Git URL, Docker image, nor Dist path was specified for this project.');
       }
 
       // Step 4: Stop & Remove old container if it exists

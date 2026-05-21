@@ -7,4 +7,6 @@ export interface IContainerInfo {
   state: ContainerState;
   status: string;
   ports: any[];
+  projectName?: string;
+  deploymentId?: string;
 }

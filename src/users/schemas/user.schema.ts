@@ -17,6 +17,18 @@ export class User {
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Organization', required: false })
   organization?: Types.ObjectId;
+
+  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Project' }], default: [] })
+  assignedProjects?: Types.ObjectId[];
+
+  @Prop({ type: Boolean, default: true })
+  canDeploy?: boolean;
+
+  @Prop({ type: Boolean, default: true })
+  canEdit?: boolean;
+
+  @Prop({ type: Boolean, default: true })
+  canView?: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

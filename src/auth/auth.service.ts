@@ -20,11 +20,17 @@ export class AuthService {
   }
 
   async login(user: any) {
+    const organizationId = user.organization?._id?.toString() || user.organization?.toString();
+    const organizationName = user.organization?.name || undefined;
     const payload = {
       email: user.email,
       sub: user._id,
       role: user.role,
-      organizationId: user.organization?.toString(),
+      organizationId,
+      organizationName,
+      canDeploy: user.canDeploy ?? true,
+      canEdit: user.canEdit ?? true,
+      canView: user.canView ?? true,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -32,7 +38,11 @@ export class AuthService {
         id: user._id,
         email: user.email,
         role: user.role,
-        organizationId: user.organization?.toString(),
+        organizationId,
+        organizationName,
+        canDeploy: user.canDeploy ?? true,
+        canEdit: user.canEdit ?? true,
+        canView: user.canView ?? true,
       },
     };
   }

@@ -19,6 +19,10 @@ export class UpdateProjectDto {
 
   @IsString()
   @IsOptional()
+  distPath?: string;
+
+  @IsString()
+  @IsOptional()
   branch?: string;
 
   @IsNumber()

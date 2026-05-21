@@ -18,6 +18,9 @@ export class Project {
   @Prop({ trim: true })
   dockerImage?: string;
 
+  @Prop({ trim: true })
+  distPath?: string;
+
   @Prop({ default: 'main' })
   branch?: string;
 
