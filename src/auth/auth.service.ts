@@ -12,25 +12,27 @@ export class AuthService {
 
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findOneByEmail(email);
-    if (user && (await bcrypt.compare(pass, user.passwordHash))) {
-      const { passwordHash, ...result } = user.toObject();
+    if (user && (await bcrypt.compare(pass, user.password))) {
+      const { password, ...result } = user.toObject();
       return result;
     }
     return null;
   }
 
   async login(user: any) {
-    const organizationId = user.organization?._id?.toString() || user.organization?.toString();
-    const organizationName = user.organization?.name || undefined;
+    const permissions = user.permissions || {
+      canDeploy: true,
+      canEdit: true,
+      canView: true,
+    };
     const payload = {
       email: user.email,
       sub: user._id,
       role: user.role,
-      organizationId,
-      organizationName,
-      canDeploy: user.canDeploy ?? true,
-      canEdit: user.canEdit ?? true,
-      canView: user.canView ?? true,
+      organizationId: user.organizationId?.toString(),
+      canDeploy: permissions.canDeploy ?? true,
+      canEdit: permissions.canEdit ?? true,
+      canView: permissions.canView ?? true,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -38,11 +40,10 @@ export class AuthService {
         id: user._id,
         email: user.email,
         role: user.role,
-        organizationId,
-        organizationName,
-        canDeploy: user.canDeploy ?? true,
-        canEdit: user.canEdit ?? true,
-        canView: user.canView ?? true,
+        organizationId: user.organizationId?.toString(),
+        canDeploy: permissions.canDeploy ?? true,
+        canEdit: permissions.canEdit ?? true,
+        canView: permissions.canView ?? true,
       },
     };
   }

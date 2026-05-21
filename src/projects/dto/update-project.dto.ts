@@ -7,10 +7,6 @@ export class UpdateProjectDto {
 
   @IsString()
   @IsOptional()
-  description?: string;
-
-  @IsString()
-  @IsOptional()
   gitUrl?: string;
 
   @IsString()
@@ -37,5 +33,5 @@ export class UpdateProjectDto {
 
   @IsObject()
   @IsOptional()
-  envVariables?: Record<string, string>;
+  env?: Record<string, string>;
 }

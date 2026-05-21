@@ -12,14 +12,20 @@ export class OrganizationsController {
 
   @Roles(UserRole.ADMIN)
   @Post()
-  async create(@Body('name') name: string, @Body('description') description?: string) {
-    return this.orgsService.create(name, description);
+  async create(@Body('name') name: string) {
+    return this.orgsService.create(name);
   }
 
   @Roles(UserRole.ADMIN)
   @Get()
   async findAll() {
     return this.orgsService.findAll();
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Post('batch')
+  async findByIds(@Body('ids') ids: string[]) {
+    return this.orgsService.findByIds(ids);
   }
 
   @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.USER)
@@ -37,12 +43,11 @@ export class OrganizationsController {
     @Param('id') id: string,
     @Request() req: any,
     @Body('name') name: string,
-    @Body('description') description?: string,
   ) {
     if (req.user.role !== UserRole.ADMIN && req.user.organizationId !== id) {
       throw new ForbiddenException('You can only update your own organization');
     }
-    return this.orgsService.update(id, { name, description });
+    return this.orgsService.update(id, { name });
   }
 
   @Roles(UserRole.ADMIN)

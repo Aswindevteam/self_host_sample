@@ -4,9 +4,11 @@ import { Model, Types } from 'mongoose';
 import { Project, ProjectDocument } from './schemas/project.schema';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { AssignProjectDto } from './dto/assign-project.dto';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { UserRole } from '../users/enums/user-role.enum';
 import { UsersService } from '../users/users.service';
+import { ProjectAssignmentsService } from './project-assignments.service';
 
 @Injectable()
 export class ProjectsService implements OnModuleInit {
@@ -14,110 +16,129 @@ export class ProjectsService implements OnModuleInit {
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     private orgsService: OrganizationsService,
     private usersService: UsersService,
+    private projectAssignmentsService: ProjectAssignmentsService,
   ) {}
 
   async onModuleInit() {
-    // Migration: assign default org to any projects missing one
-    const defaultOrg = await this.orgsService.getDefaultOrg();
-    if (defaultOrg) {
-      await this.projectModel.updateMany(
-        { organization: { $exists: false } },
-        { $set: { organization: defaultOrg._id } },
-      ).exec();
-    }
+    // No migration needed for organization field as it was removed from schema
   }
 
-  /** Create a project owned by the requesting user inside their org */
+  /** Create a project owned by the requesting user */
   async create(projectData: CreateProjectDto, user: any): Promise<ProjectDocument> {
     const createdProject = new this.projectModel({
       ...projectData,
       owner: new Types.ObjectId(user.userId),
-      organization: user.organizationId ? new Types.ObjectId(user.organizationId) : undefined,
     });
-    return createdProject.save();
+    const savedProject = await createdProject.save();
+
+    // Automatically assign the creator to the project with full access
+    await this.projectAssignmentsService.assignToUser(
+      savedProject._id.toString(),
+      user.userId,
+      true, // canView
+      true, // canEdit
+      true, // canDeploy
+    );
+
+    return savedProject;
   }
 
   /**
    * findAll:
-   *   Admin/Org Admin → all projects in their org
-   *   User             → projects owned by this user or projects assigned to them in their org
+   *   Admin → all projects
+   *   Org-admin/User → projects they have been assigned access to
    */
   async findAll(user: any): Promise<ProjectDocument[]> {
-    if (!user.organizationId) return [];
+    if (user.role === UserRole.ADMIN) {
+      // Admin sees all projects with owner and organization info
+      const projects = await this.projectModel
+        .find()
+        .populate('owner', 'email role organizationId')
+        .exec();
 
-    const orgFilter = { organization: new Types.ObjectId(user.organizationId) };
+      // Fetch organization names and attach to projects
+      const orgIds = projects
+        .map((p) => (p.owner as any)?.organizationId)
+        .filter((id): id is string => !!id);
 
-    if (user.role === UserRole.ADMIN || user.role === UserRole.ORG_ADMIN) {
-      // Admin/Org Admin sees every project in the org
-      return this.projectModel.find(orgFilter).populate('owner', 'email').exec();
+      console.log('[ProjectsService] Org IDs extracted:', orgIds);
+
+      if (orgIds.length > 0) {
+        try {
+          const orgs = await this.orgsService.findByIds(orgIds);
+          console.log('[ProjectsService] Organizations found:', orgs.length);
+          const orgMap = new Map(orgs.map((o) => [o._id.toString(), o.name]));
+          console.log('[ProjectsService] Org map:', Array.from(orgMap.entries()));
+
+          const result = projects.map((project) => {
+            const orgId = (project.owner as any)?.organizationId?.toString();
+            const orgName = orgId ? orgMap.get(orgId) : null;
+            console.log(`[ProjectsService] Project ${project.name}: orgId=${orgId}, orgName=${orgName}`);
+
+            // Convert to plain object and add organizationName
+            const projectObj = project.toObject();
+            (projectObj as any).organizationName = orgName;
+            return projectObj;
+          });
+
+          return result;
+        } catch (error) {
+          console.error('[ProjectsService] Error fetching organizations:', error);
+          return projects;
+        }
+      }
+
+      return projects;
     }
 
-    // Fetch user details to get assignedProjects
-    const userDoc = await this.usersService.findOneById(user.userId);
-    const assignedProjects = userDoc?.assignedProjects || [];
+    // Non-admins see only projects they have been assigned access to
+    const assignments = await this.projectAssignmentsService.findByUser(user.userId);
+    const projectIds = assignments.map(a => a.projectId);
 
-    // Regular user sees only their own or assigned projects
+    if (projectIds.length === 0) {
+      return [];
+    }
+
     return this.projectModel
-      .find({
-        ...orgFilter,
-        $or: [
-          { owner: new Types.ObjectId(user.userId) },
-          { _id: { $in: assignedProjects } },
-        ],
-      })
-      .populate('owner', 'email')
+      .find({ _id: { $in: projectIds } })
+      .populate('owner', 'email role organizationId')
       .exec();
   }
 
   /**
    * findOne:
-   *   Admin/Org Admin → any project in their org
-   *   User             → only their own or assigned projects
+   *   Admin → any project
+   *   Org-admin/User → projects they have been assigned access to
    */
   async findOne(id: string, user: any): Promise<ProjectDocument> {
-    if (!user.organizationId) throw new ForbiddenException('No organization assigned');
-
-    const project = await this.projectModel.findById(id).populate('owner', 'email').exec();
+    const project = await this.projectModel.findById(id).populate('owner', 'email role organizationId').exec();
     if (!project) throw new NotFoundException('Project not found');
 
-    // Must be in same org
-    if (project.organization?.toString() !== user.organizationId) {
-      throw new ForbiddenException('Access denied');
+    // Admin can access any project
+    if (user.role === UserRole.ADMIN) {
+      return project;
     }
 
-    // User can only access their own or assigned projects
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.ORG_ADMIN) {
-      const userDoc = await this.usersService.findOneById(user.userId);
-      const isAssigned = userDoc?.assignedProjects?.some(
-        (projId) => projId.toString() === id,
-      );
-      if (project.owner?.toString() !== user.userId && !isAssigned) {
-        throw new ForbiddenException('You can only access your own or assigned projects');
-      }
+    // Non-admins can only access projects they have been assigned to
+    const hasAccess = await this.projectAssignmentsService.hasAccess(id, user.userId);
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this project');
     }
 
     return project;
   }
 
-  /** Update: admin/org-admin can update any org project; user only their own or assigned if edit permission is granted */
+  /** Update: admin can update any project; user only their own if edit permission is granted */
   async update(id: string, updateData: UpdateProjectDto, user: any): Promise<ProjectDocument> {
-    const project = await this.findOne(id, user); // enforces visibility/org match
+    const project = await this.findOne(id, user); // enforces visibility
 
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.ORG_ADMIN) {
-      const userDoc = await this.usersService.findOneById(user.userId);
-      
-      // Check edit permissions
-      if (userDoc?.canEdit === false) {
-        throw new ForbiddenException('You do not have permission to edit projects');
-      }
+    if (user.role !== UserRole.ADMIN) {
+      // Check edit permissions from project assignment
+      const assignment = await this.projectAssignmentsService.findByUser(user.userId);
+      const projectAssignment = assignment.find(a => a.projectId.toString() === id);
 
-      const isOwner = project.owner?.toString() === user.userId;
-      const isAssigned = userDoc?.assignedProjects?.some(
-        (projId) => projId.toString() === id,
-      );
-
-      if (!isOwner && !isAssigned) {
-        throw new ForbiddenException('You can only update your own or assigned projects');
+      if (!projectAssignment || !projectAssignment.canEdit) {
+        throw new ForbiddenException('You do not have permission to edit this project');
       }
 
       // Enforce that regular users cannot switch core deployment type (git vs docker vs dist)
@@ -159,16 +180,79 @@ export class ProjectsService implements OnModuleInit {
     return project.save();
   }
 
-  /** Delete: admin or org-admin only */
+  /** Delete: admin and org-admin (for their own projects) */
   async remove(id: string, user: any): Promise<any> {
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.ORG_ADMIN) {
-      throw new ForbiddenException('Only administrators can delete projects');
-    }
     const project = await this.projectModel.findById(id).exec();
     if (!project) throw new NotFoundException('Project not found');
-    if (project.organization?.toString() !== user.organizationId) {
-      throw new ForbiddenException('Access denied');
+
+    // Admin can delete any project
+    if (user.role === UserRole.ADMIN) {
+      return this.projectModel.findByIdAndDelete(id).exec();
     }
-    return this.projectModel.findByIdAndDelete(id).exec();
+
+    // Org-admin can only delete their own projects
+    if (user.role === UserRole.ORG_ADMIN) {
+      if (project.owner.toString() !== user.userId) {
+        throw new ForbiddenException('You can only delete your own projects');
+      }
+      return this.projectModel.findByIdAndDelete(id).exec();
+    }
+
+    throw new ForbiddenException('Only administrators and org-admins can delete projects');
+  }
+
+  /** Assign project to user with permissions */
+  async assignToUser(assignProjectDto: AssignProjectDto, user: any): Promise<any> {
+    const { projectId, userId, canView, canEdit, canDeploy } = assignProjectDto;
+
+    // Verify project exists
+    const project = await this.projectModel.findById(projectId).exec();
+    if (!project) throw new NotFoundException('Project not found');
+
+    // Verify user exists
+    const targetUser = await this.usersService.findOneById(userId);
+    if (!targetUser) throw new NotFoundException('User not found');
+
+    // Admin can assign any project
+    if (user.role === UserRole.ADMIN) {
+      await this.projectAssignmentsService.assignToUser(
+        projectId,
+        userId,
+        canView !== undefined ? canView : true,
+        canEdit !== undefined ? canEdit : true,
+        canDeploy !== undefined ? canDeploy : true,
+      );
+      return { message: 'Project assigned successfully' };
+    }
+
+    // Org-admin can only assign projects from their organization
+    if (user.role === UserRole.ORG_ADMIN) {
+      const currentUser = await this.usersService.findOneById(user.userId);
+      if (!currentUser?.organizationId) {
+        throw new ForbiddenException('You are not assigned to an organization');
+      }
+
+      // Check if project owner is in the same organization
+      const projectOwner = await this.usersService.findOneById(project.owner.toString());
+      if (!projectOwner?.organizationId || projectOwner.organizationId.toString() !== currentUser.organizationId.toString()) {
+        throw new ForbiddenException('You can only assign projects from your organization');
+      }
+
+      // Check if target user is in the same organization
+      if (!targetUser.organizationId || targetUser.organizationId.toString() !== currentUser.organizationId.toString()) {
+        throw new ForbiddenException('You can only assign projects to users in your organization');
+      }
+
+      await this.projectAssignmentsService.assignToUser(
+        projectId,
+        userId,
+        canView !== undefined ? canView : true,
+        canEdit !== undefined ? canEdit : true,
+        canDeploy !== undefined ? canDeploy : true,
+      );
+      return { message: 'Project assigned successfully' };
+    }
+
+    throw new ForbiddenException('Only administrators and org-admins can assign projects');
   }
 }

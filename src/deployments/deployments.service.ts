@@ -19,14 +19,14 @@ export class DeploymentsService {
     private nginxService: NginxService,
   ) {}
 
-  async create(projectId: string, userId: string): Promise<DeploymentDocument> {
-    // Verify user owns the project
-    const project = await this.projectsService.findOne(projectId, userId);
+  async create(projectId: string, user: any): Promise<DeploymentDocument> {
+    // Verify user has access to the project
+    const project = await this.projectsService.findOne(projectId, user);
 
     const createdDeployment = new this.deploymentModel({
-      project: new Types.ObjectId(projectId),
-      status: DeploymentStatus.PENDING,
-      logs: `[${new Date().toISOString()}] Deployment initialized...\n`,
+      projectId: new Types.ObjectId(projectId),
+      status: 'PENDING',
+      logs: [`[${new Date().toISOString()}] Deployment initialized...`],
     });
     const savedDeployment = await createdDeployment.save();
 
@@ -36,34 +36,32 @@ export class DeploymentsService {
     return savedDeployment;
   }
 
-  async findAllByProject(projectId: string, userId: string): Promise<DeploymentDocument[]> {
-    // Verify user owns the project
-    await this.projectsService.findOne(projectId, userId);
+  async findAllByProject(projectId: string, user: any): Promise<DeploymentDocument[]> {
+    // Verify user has access to the project
+    await this.projectsService.findOne(projectId, user);
 
-    return this.deploymentModel.find({ project: new Types.ObjectId(projectId) }).sort({ createdAt: -1 }).exec();
+    return this.deploymentModel.find({ projectId: new Types.ObjectId(projectId) }).sort({ createdAt: -1 }).exec();
   }
 
-  async findOne(id: string, userId: string): Promise<DeploymentDocument> {
-    const deployment = await this.deploymentModel.findById(id).populate('project').exec();
+  async findOne(id: string, user: any): Promise<DeploymentDocument> {
+    const deployment = await this.deploymentModel.findById(id).populate('projectId').exec();
     if (!deployment) {
       throw new NotFoundException('Deployment not found');
     }
-    // Verify user owns the project associated with this deployment
-    const project: any = deployment.project;
-    if (project.owner.toString() !== userId) {
-      throw new UnauthorizedException('Access denied');
-    }
+    // Verify user has access to the project associated with this deployment
+    const project: any = deployment.projectId;
+    await this.projectsService.findOne(project._id.toString(), user);
     return deployment;
   }
 
-  async updateStatus(id: string, status: DeploymentStatus, logLine?: string): Promise<DeploymentDocument> {
+  async updateStatus(id: string, status: string, logLine?: string): Promise<DeploymentDocument> {
     const deployment = await this.deploymentModel.findById(id).exec();
     if (!deployment) {
       throw new NotFoundException('Deployment not found');
     }
     deployment.status = status;
     if (logLine) {
-      deployment.logs += `\n[${new Date().toISOString()}] ${logLine}`;
+      deployment.logs.push(`[${new Date().toISOString()}] ${logLine}`);
     }
     return deployment.save();
   }
@@ -89,17 +87,17 @@ export class DeploymentsService {
     const appendLog = async (text: string) => {
       const dep = await this.deploymentModel.findById(deploymentId);
       if (dep) {
-        dep.logs += text;
+        dep.logs.push(text);
         await dep.save();
       }
     };
 
     try {
       if (isRollback) {
-        await this.updateStatus(deploymentId, DeploymentStatus.BUILDING, 'Executing rollback to target version...');
+        await this.updateStatus(deploymentId, 'BUILDING', 'Executing rollback to target version...');
         await appendLog(`\n[Orchestrator] Rolling back container to image ${targetImage}...\n`);
       } else if (isDockerImage) {
-        await this.updateStatus(deploymentId, DeploymentStatus.BUILDING, 'Pulling target Docker image...');
+        await this.updateStatus(deploymentId, 'BUILDING', 'Pulling target Docker image...');
         await appendLog(`\n[Orchestrator] Pulling Docker image ${targetImage}...\n`);
         await new Promise<void>((resolve, reject) => {
           const pull = spawn('docker', ['pull', targetImage]);
@@ -111,7 +109,7 @@ export class DeploymentsService {
           });
         });
       } else if (project.gitUrl) {
-        await this.updateStatus(deploymentId, DeploymentStatus.BUILDING, 'Starting code retrieval...');
+        await this.updateStatus(deploymentId, 'BUILDING', 'Starting code retrieval...');
         fs.mkdirSync(tempDir, { recursive: true });
 
         // Step 1: Git clone the target repository
@@ -178,7 +176,7 @@ if (targetDir) {
           });
         });
       } else if (project.distPath) {
-        await this.updateStatus(deploymentId, DeploymentStatus.BUILDING, 'Preparing dist folder...');
+        await this.updateStatus(deploymentId, 'BUILDING', 'Preparing dist folder...');
         fs.mkdirSync(tempDir, { recursive: true });
 
         await appendLog(`\n[Orchestrator] Copying dist folder from ${project.distPath}...\n`);
@@ -268,9 +266,10 @@ CMD ["serve", "-s", ".", "-l", "${project.port}"]
       const finalContainerId = containerId.substring(0, 12);
       const deployment = await this.deploymentModel.findById(deploymentId).exec();
       if (deployment) {
-        deployment.status = DeploymentStatus.RUNNING;
+        deployment.status = 'RUNNING';
         deployment.containerId = finalContainerId;
-        deployment.logs += `\n[Orchestrator] Successful deployment! Container ID: ${finalContainerId}\n`;
+        deployment.imageName = targetImage;
+        deployment.logs.push(`\n[Orchestrator] Successful deployment! Container ID: ${finalContainerId}\n`);
         await deployment.save();
       }
 
@@ -284,7 +283,7 @@ CMD ["serve", "-s", ".", "-l", "${project.port}"]
 
     } catch (err) {
       this.logger.error(`Deployment failed: ${err.message}`, err.stack);
-      await this.updateStatus(deploymentId, DeploymentStatus.FAILED, `Deployment failed: ${err.message}`);
+      await this.updateStatus(deploymentId, 'FAILED', `Deployment failed: ${err.message}`);
     } finally {
       // Clean up temporary workspace directory
       try {
@@ -295,24 +294,24 @@ CMD ["serve", "-s", ".", "-l", "${project.port}"]
     }
   }
 
-  async rollback(targetDeploymentId: string, userId: string): Promise<DeploymentDocument> {
+  async rollback(targetDeploymentId: string, user: any): Promise<DeploymentDocument> {
     const targetDeployment = await this.deploymentModel
       .findById(targetDeploymentId)
-      .populate('project')
+      .populate('projectId')
       .exec();
     if (!targetDeployment) {
       throw new NotFoundException('Target deployment not found');
     }
-    const project: any = targetDeployment.project;
-    if (project.owner.toString() !== userId) {
-      throw new UnauthorizedException('Access denied');
-    }
+    const project: any = targetDeployment.projectId;
+
+    // Verify user has access to the project
+    await this.projectsService.findOne(project._id.toString(), user);
 
     // Create a new deployment to track this rollback process
     const createdDeployment = new this.deploymentModel({
-      project: project._id,
-      status: DeploymentStatus.PENDING,
-      logs: `[${new Date().toISOString()}] Rollback initiated targeting deployment #${targetDeploymentId.substring(18)}...\n`,
+      projectId: project._id,
+      status: 'PENDING',
+      logs: [`[${new Date().toISOString()}] Rollback initiated targeting deployment #${targetDeploymentId.substring(18)}...`],
     });
     const savedDeployment = await createdDeployment.save();
 

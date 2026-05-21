@@ -1,19 +1,24 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
+import { ProjectsService } from './projects.service';
 import { Project, ProjectSchema } from './schemas/project.schema';
+import { ProjectAssignment, ProjectAssignmentSchema } from './schemas/project-assignment.schema';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
+import { ProjectAssignmentsService } from './project-assignments.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Project.name, schema: ProjectSchema }]),
+    MongooseModule.forFeature([
+      { name: Project.name, schema: ProjectSchema },
+      { name: ProjectAssignment.name, schema: ProjectAssignmentSchema },
+    ]),
     OrganizationsModule,
     UsersModule,
   ],
   controllers: [ProjectsController],
-  providers: [ProjectsService],
-  exports: [ProjectsService],
+  providers: [ProjectsService, ProjectAssignmentsService],
+  exports: [ProjectsService, ProjectAssignmentsService],
 })
 export class ProjectsModule {}

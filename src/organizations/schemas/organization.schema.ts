@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type OrganizationDocument = Organization & Document;
 
@@ -8,8 +8,8 @@ export class Organization {
   @Prop({ required: true, unique: true, trim: true })
   name: string;
 
-  @Prop()
-  description?: string;
+  @Prop({ type: [MongooseSchema.Types.ObjectId], default: [] })
+  members: Types.ObjectId[];
 }
 
 export const OrganizationSchema = SchemaFactory.createForClass(Organization);

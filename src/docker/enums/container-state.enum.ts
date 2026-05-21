@@ -1,6 +1,6 @@
 export enum ContainerState {
-  RUNNING = 'running',
-  EXITED = 'exited',
-  PAUSED = 'paused',
-  RESTARTING = 'restarting',
+  RUNNING = 'RUNNING',
+  STOPPED = 'STOPPED',
+  FAILED = 'FAILED',
+  RESTARTING = 'RESTARTING',
 }

@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema, Types } from 'mongoose';
-import { UserRole } from '../enums/user-role.enum';
 
 export type UserDocument = User & Document;
 
@@ -10,25 +9,31 @@ export class User {
   email: string;
 
   @Prop({ required: true })
-  passwordHash: string;
+  password: string;
 
-  @Prop({ default: UserRole.USER, enum: Object.values(UserRole) })
-  role: UserRole;
+  @Prop({ default: 'user', enum: ['admin', 'org-admin', 'user'] })
+  role: string;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Organization', required: false })
-  organization?: Types.ObjectId;
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: false })
+  organizationId?: Types.ObjectId;
 
-  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Project' }], default: [] })
-  assignedProjects?: Types.ObjectId[];
-
-  @Prop({ type: Boolean, default: true })
-  canDeploy?: boolean;
-
-  @Prop({ type: Boolean, default: true })
-  canEdit?: boolean;
-
-  @Prop({ type: Boolean, default: true })
-  canView?: boolean;
+  @Prop({
+    type: {
+      canDeploy: { type: Boolean, default: true },
+      canEdit: { type: Boolean, default: true },
+      canView: { type: Boolean, default: true },
+    },
+    default: {
+      canDeploy: true,
+      canEdit: true,
+      canView: true,
+    },
+  })
+  permissions?: {
+    canDeploy: boolean;
+    canEdit: boolean;
+    canView: boolean;
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

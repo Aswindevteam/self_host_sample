@@ -9,21 +9,21 @@ export class DeploymentsController {
 
   @Post('project/:projectId')
   async create(@Param('projectId') projectId: string, @Request() req: any) {
-    return this.deploymentsService.create(projectId, req.user.userId);
+    return this.deploymentsService.create(projectId, req.user);
   }
 
   @Get('project/:projectId')
   async findAllByProject(@Param('projectId') projectId: string, @Request() req: any) {
-    return this.deploymentsService.findAllByProject(projectId, req.user.userId);
+    return this.deploymentsService.findAllByProject(projectId, req.user);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req: any) {
-    return this.deploymentsService.findOne(id, req.user.userId);
+    return this.deploymentsService.findOne(id, req.user);
   }
 
   @Post(':id/rollback')
   async rollback(@Param('id') id: string, @Request() req: any) {
-    return this.deploymentsService.rollback(id, req.user.userId);
+    return this.deploymentsService.rollback(id, req.user);
   }
 }

@@ -40,12 +40,11 @@ export class AuthController {
   async createOrganization(
     @Request() req: any,
     @Body('name') name: string,
-    @Body('description') description?: string,
   ) {
     if (!name) {
       throw new UnauthorizedException('Organization name is required');
     }
-    const org = await this.orgsService.create(name, description);
+    const org = await this.orgsService.create(name);
     const userId = req.user.userId;
     const updatedUser = await this.usersService.updateOrganization(userId, org._id);
     return this.authService.login(updatedUser);

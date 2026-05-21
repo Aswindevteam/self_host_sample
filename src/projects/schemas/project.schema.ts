@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema, Types } from 'mongoose';
-import { User } from '../../users/schemas/user.schema';
 
 export type ProjectDocument = Project & Document;
 
@@ -8,9 +7,6 @@ export type ProjectDocument = Project & Document;
 export class Project {
   @Prop({ required: true, trim: true })
   name: string;
-
-  @Prop()
-  description: string;
 
   @Prop({ trim: true })
   gitUrl?: string;
@@ -31,13 +27,10 @@ export class Project {
   domain?: string;
 
   @Prop({ type: Map, of: String, default: {} })
-  envVariables: Map<string, string>;
+  env: Map<string, string>;
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
   owner: Types.ObjectId;
-
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Organization', required: false })
-  organization?: Types.ObjectId;
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);
