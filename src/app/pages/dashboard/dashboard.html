@@ -1,28 +1,49 @@
-<div class="dashboard-layout">
-  <!-- Top Navigation Header -->
-  <header class="topbar">
-    <div class="logo">
-      <span class="pulse-dot"></span>
-      <h2>LaunchPad</h2>
-    </div>
-    <div class="user-profile">
-      <span class="email">{{ authService.currentUser()?.email }}</span>
-      <button class="logout-btn" (click)="authService.logout()">Log Out</button>
-    </div>
-  </header>
+<div class="dashboard-page">
+  @if (!authService.currentUser()?.organizationId) {
+    <div class="onboarding-container">
+      <div class="glass-card onboarding-card">
+        <div class="header animate-fade-in">
+          <h2>Welcome to LaunchPad!</h2>
+          <p class="subtitle">To get started, create your organization workspace.</p>
+        </div>
 
-  <!-- Main Container -->
-  <main class="main-content">
+        <form (submit)="onCreateOrganization(); $event.preventDefault()" class="animate-slide-up">
+          <div class="form-group">
+            <label for="orgName">Organization Name</label>
+            <input type="text" id="orgName" name="orgName" [(ngModel)]="orgName" placeholder="e.g. My Dev Team" required />
+          </div>
+          <div class="form-group">
+            <label for="orgDesc">Description (Optional)</label>
+            <textarea id="orgDesc" name="orgDesc" [(ngModel)]="orgDesc" placeholder="Brief description..." rows="3"></textarea>
+          </div>
+          @if (orgError()) {
+            <div class="error-banner">{{ orgError() }}</div>
+          }
+          <button type="submit" class="submit-btn" [disabled]="orgLoading()">
+            @if (orgLoading()) { <span class="spinner"></span> Creating... } @else { Create Workspace & Continue }
+          </button>
+        </form>
+      </div>
+    </div>
+  } @else {
     <div class="content-header">
       <div>
         <h1>Dashboard</h1>
-        <p class="subtitle">Deploy, monitor, and manage your infrastructure.</p>
+        <p class="subtitle">Your applications and infrastructure at a glance.</p>
       </div>
-      @if (activeTab() === 'apps') {
-        <button class="action-btn" (click)="toggleCreateForm()">
-          {{ showCreateForm() ? 'Cancel' : 'New Project' }}
-        </button>
-      }
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        @if (isAdmin) {
+          <a routerLink="/admin" class="action-btn">Admin Panel</a>
+        }
+        @if (isOrgAdmin) {
+          <a routerLink="/org-users" class="action-btn">Manage Users</a>
+        }
+        @if (isAdmin || isOrgAdmin || projects().length > 0) {
+          @if (authService.currentUser()?.role !== 'user') {
+            <a routerLink="/deploy" class="action-btn primary">+ Deploy New</a>
+          }
+        }
+      </div>
     </div>
 
     <!-- Tab Navigation -->
@@ -30,9 +51,11 @@
       <button class="tab-btn" [class.active]="activeTab() === 'apps'" (click)="setTab('apps')">
         Applications
       </button>
-      <button class="tab-btn" [class.active]="activeTab() === 'docker'" (click)="setTab('docker')">
-        Docker Engine
-      </button>
+      @if (isAdmin || authService.currentUser()?.role !== 'user') {
+        <button class="tab-btn" [class.active]="activeTab() === 'docker'" (click)="setTab('docker')">
+          Docker Engine
+        </button>
+      }
     </div>
 
     <!-- TAB 1: Applications -->
@@ -102,28 +125,16 @@
                 />
               </div>
 
-              <div class="form-grid">
-                <div class="form-group">
-                  <label for="branch">Target Branch</label>
-                  <input
-                    type="text"
-                    id="branch"
-                    name="branch"
-                    [(ngModel)]="newProjectBranch"
-                    placeholder="main"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="description">Description</label>
-                  <input
-                    type="text"
-                    id="description"
-                    name="description"
-                    [(ngModel)]="newProjectDesc"
-                    placeholder="Production api server"
-                  />
-                </div>
+              <div class="form-group">
+                <label for="branch">Target Branch</label>
+                <input
+                  type="text"
+                  id="branch"
+                  name="branch"
+                  [(ngModel)]="newProjectBranch"
+                  placeholder="main"
+                  required
+                />
               </div>
             }
 
@@ -138,17 +149,6 @@
                   [(ngModel)]="newProjectImage"
                   placeholder="nginx:alpine or redis:alpine or mongo:7.0"
                   required
-                />
-              </div>
-
-              <div class="form-group">
-                <label for="description">Description</label>
-                <input
-                  type="text"
-                  id="description"
-                  name="description"
-                  [(ngModel)]="newProjectDesc"
-                  placeholder="Seeded cache / server container"
                 />
               </div>
             }
@@ -181,55 +181,115 @@
         @if (projects().length === 0) {
           <div class="empty-state glass-card">
             <div class="empty-icon">📁</div>
-            <h3>No applications yet</h3>
-            <p>Get started by registering a repository or directly deploying a pre-built Docker image.</p>
-            <button class="action-btn" (click)="toggleCreateForm()">Create One Now</button>
+            @if (isAdmin || authService.currentUser()?.role === 'org-admin') {
+              <h3>No applications yet</h3>
+              <p>Get started by deploying a Git repository or a pre-built Docker image.</p>
+              <a routerLink="/deploy" class="action-btn">Deploy Now</a>
+            } @else {
+              <h3>No Assigned Projects</h3>
+              <p>You do not have any projects assigned. Please contact your organization administrator to get access.</p>
+            }
           </div>
         } @else {
-          <div class="projects-grid">
-            @for (project of projects(); track project._id) {
-              <div class="project-card glass-card" [routerLink]="['/project', project._id]">
-                <div class="card-header">
-                  <h3>{{ project.name }}</h3>
-                  <span class="badge active">active</span>
-                </div>
-                <p class="description">{{ project.description || 'No description provided' }}</p>
-                
-                <div class="meta-section">
-                  @if (project.domain) {
-                    <div class="meta-item">
-                      <span class="label">Domain:</span>
-                      <span class="val truncate">{{ project.domain }}</span>
+          @if (isAdmin) {
+            <!-- Admin view: Group by organization -->
+            @for (orgGroup of projectsByOrg(); track orgGroup.orgId) {
+              <div class="org-section">
+                <h3 class="org-header">
+                  Organization: {{ orgGroup.orgName }}
+                  <span class="project-count">{{ orgGroup.projects.length }} projects</span>
+                </h3>
+                <div class="projects-grid">
+                  @for (project of orgGroup.projects; track project._id) {
+                    <div class="project-card glass-card" [routerLink]="['/project', project._id]">
+                      <div class="card-header">
+                        <h3>{{ project.name }}</h3>
+                        <span class="badge active">active</span>
+                      </div>
+
+                      <div class="meta-section">
+                        @if (project.domain) {
+                          <div class="meta-item">
+                            <span class="label">Domain:</span>
+                            <span class="val truncate">{{ project.domain }}</span>
+                          </div>
+                        }
+                        @if (project.dockerImage) {
+                          <div class="meta-item">
+                            <span class="label">Image:</span>
+                            <span class="val truncate">{{ project.dockerImage }}</span>
+                          </div>
+                        } @else {
+                          <div class="meta-item">
+                            <span class="label">Repo:</span>
+                            <span class="val truncate">{{ project.gitUrl }}</span>
+                          </div>
+                          <div class="meta-grid">
+                            <div class="meta-item">
+                              <span class="label">Branch:</span>
+                              <span class="val">{{ project.branch }}</span>
+                            </div>
+                            <div class="meta-item">
+                              <span class="label">Port:</span>
+                              <span class="val">{{ project.port }}</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                      <div class="card-footer">
+                        <span class="details-link">Manage Deployment →</span>
+                      </div>
                     </div>
                   }
-                  @if (project.dockerImage) {
-                    <div class="meta-item">
-                      <span class="label">Image:</span>
-                      <span class="val truncate">{{ project.dockerImage }}</span>
-                    </div>
-                  } @else {
-                    <div class="meta-item">
-                      <span class="label">Repo:</span>
-                      <span class="val truncate">{{ project.gitUrl }}</span>
-                    </div>
-                    <div class="meta-grid">
-                      <div class="meta-item">
-                        <span class="label">Branch:</span>
-                        <span class="val">{{ project.branch }}</span>
-                      </div>
-                      <div class="meta-item">
-                        <span class="label">Port:</span>
-                        <span class="val">{{ project.port }}</span>
-                      </div>
-                    </div>
-                  }
-                </div>
-                <div class="card-footer">
-                  <span class="details-link">Manage Deployment →</span>
                 </div>
               </div>
             }
-          </div>
+          } @else {
+            <!-- Non-admin view: Show all projects (already filtered by org) -->
+            <div class="projects-grid">
+              @for (project of projects(); track project._id) {
+                <div class="project-card glass-card" [routerLink]="['/project', project._id]">
+                  <div class="card-header">
+                    <h3>{{ project.name }}</h3>
+                    <span class="badge active">active</span>
+                  </div>
+                  
+                  <div class="meta-section">
+                    @if (project.domain) {
+                      <div class="meta-item">
+                        <span class="label">Domain:</span>
+                        <span class="val truncate">{{ project.domain }}</span>
+                      </div>
+                    }
+                    @if (project.dockerImage) {
+                      <div class="meta-item">
+                        <span class="label">Image:</span>
+                        <span class="val truncate">{{ project.dockerImage }}</span>
+                      </div>
+                    } @else {
+                      <div class="meta-item">
+                        <span class="label">Repo:</span>
+                        <span class="val truncate">{{ project.gitUrl }}</span>
+                      </div>
+                      <div class="meta-grid">
+                        <div class="meta-item">
+                          <span class="label">Branch:</span>
+                          <span class="val">{{ project.branch }}</span>
+                        </div>
+                        <div class="meta-item">
+                          <span class="label">Port:</span>
+                          <span class="val">{{ project.port }}</span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                  <div class="card-footer">
+                    <span class="details-link">Manage Deployment →</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
         }
       }
     }
@@ -270,8 +330,20 @@
               <tbody>
                 @for (c of containers(); track c.id) {
                   <tr>
-                    <td class="container-name">{{ c.names[0] || c.id.substring(0, 12) }}</td>
-                    <td class="container-image">{{ c.image }}</td>
+                    <td class="container-name" [title]="c.projectName ? 'Docker Container: ' + c.names[0] : ''">
+                      @if (c.projectName) {
+                        <span class="app-display-name">{{ c.projectName }}</span>
+                      } @else {
+                        <span>{{ c.names[0] || c.id.substring(0, 12) }}</span>
+                      }
+                    </td>
+                    <td class="container-image" [title]="c.projectName && c.deploymentId ? 'Docker Image: ' + c.image : ''">
+                      @if (c.projectName && c.deploymentId) {
+                        <span class="app-display-name">{{ c.projectName }}</span>:<span class="deployment-tag">#{{ c.deploymentId.length > 18 ? c.deploymentId.substring(18) : c.deploymentId }}</span>
+                      } @else {
+                        <span>{{ c.image }}</span>
+                      }
+                    </td>
                     <td>
                       <span class="state-badge" [class]="c.state">
                         {{ c.state }}
@@ -287,12 +359,14 @@
                     </td>
                     <td>
                       <div class="btn-group">
-                        @if (c.state !== 'running') {
-                          <button class="ctrl-btn start" (click)="startContainer(c.id)">Start</button>
-                        } @else {
-                          <button class="ctrl-btn stop" (click)="stopContainer(c.id)">Stop</button>
+                        @if (isAdmin) {
+                          @if (c.state !== 'running') {
+                            <button class="ctrl-btn start" (click)="startContainer(c.id)">Start</button>
+                          } @else {
+                            <button class="ctrl-btn stop" (click)="stopContainer(c.id)">Stop</button>
+                          }
+                          <button class="ctrl-btn restart" (click)="restartContainer(c.id)">Restart</button>
                         }
-                        <button class="ctrl-btn restart" (click)="restartContainer(c.id)">Restart</button>
                         <button class="ctrl-btn logs" (click)="viewContainerLogs(c)">Logs</button>
                       </div>
                     </td>
@@ -304,26 +378,26 @@
         }
       }
     }
-  </main>
-
-  <!-- Logs Overlay Modal -->
-  @if (selectedContainerLogs() !== null) {
-    <div class="modal-backdrop" (click)="closeLogsModal()">
-      <div class="modal-card glass-card" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3>Container Logs: {{ selectedContainerName() }}</h3>
-          <button class="close-btn" (click)="closeLogsModal()">×</button>
-        </div>
-        <div class="modal-body">
-          @if (loadingLogs()) {
-            <div class="loading-state">
-              <span class="spinner"></span>
-            </div>
-          } @else {
-            <pre class="terminal-logs"><code>{{ selectedContainerLogs() }}</code></pre>
-          }
-        </div>
-      </div>
-    </div>
   }
 </div>
+
+<!-- Logs Overlay Modal -->
+@if (selectedContainerLogs() !== null) {
+  <div class="modal-backdrop" (click)="closeLogsModal()">
+    <div class="modal-card glass-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Container Logs: {{ selectedContainerName() }}</h3>
+        <button class="close-btn" (click)="closeLogsModal()">×</button>
+      </div>
+      <div class="modal-body">
+        @if (loadingLogs()) {
+          <div class="loading-state">
+            <span class="spinner"></span>
+          </div>
+        } @else {
+          <pre class="terminal-logs"><code>{{ selectedContainerLogs() }}</code></pre>
+        }
+      </div>
+    </div>
+  </div>
+}

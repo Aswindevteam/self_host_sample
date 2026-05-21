@@ -1,10 +1,11 @@
-// Force reload compile trigger
 import { Component, signal, inject, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { ProjectService, Project } from '../../services/project.service';
 import { DockerService, DockerContainer } from '../../services/docker.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard',
@@ -17,12 +18,23 @@ export class DashboardComponent implements OnInit {
   protected authService = inject(AuthService);
   private projectService = inject(ProjectService);
   private dockerService = inject(DockerService);
+  private http = inject(HttpClient);
+
+  protected get isAdmin() {
+    return this.authService.currentUser()?.role === 'admin';
+  }
+
+  protected get isOrgAdmin() {
+    return this.authService.currentUser()?.role === 'org-admin';
+  }
 
   protected activeTab = signal<'apps' | 'docker'>('apps');
 
   // Apps State
   protected projects = signal<Project[]>([]);
   protected loadingApps = signal(false);
+  protected projectsByOrg = signal<{ orgId: string; orgName: string; projects: Project[] }[]>([]);
+  protected orgNames = signal<Map<string, string>>(new Map());
 
   // Docker State
   protected containers = signal<DockerContainer[]>([]);
@@ -37,7 +49,6 @@ export class DashboardComponent implements OnInit {
   protected showCreateForm = signal(false);
   protected deploySource = signal<'git' | 'image'>('git');
   protected newProjectName = signal('');
-  protected newProjectDesc = signal('');
   protected newProjectGitUrl = signal('');
   protected newProjectBranch = signal('main');
   protected newProjectImage = signal('');
@@ -46,9 +57,37 @@ export class DashboardComponent implements OnInit {
   protected createLoading = signal(false);
   protected createError = signal('');
 
+  // Organization onboarding signals
+  protected orgName = signal('');
+  protected orgDesc = signal('');
+  protected orgLoading = signal(false);
+  protected orgError = signal('');
+
   ngOnInit() {
-    this.loadProjects();
-    this.loadContainers();
+    if (this.authService.currentUser()?.organizationId) {
+      this.loadProjects();
+      this.loadContainers();
+    }
+  }
+
+  onCreateOrganization() {
+    if (!this.orgName().trim()) {
+      this.orgError.set('Organization name is required.');
+      return;
+    }
+    this.orgLoading.set(true);
+    this.orgError.set('');
+    this.authService.createOrganization(this.orgName().trim(), this.orgDesc().trim()).subscribe({
+      next: () => {
+        this.orgLoading.set(false);
+        this.loadProjects();
+        this.loadContainers();
+      },
+      error: (err) => {
+        this.orgLoading.set(false);
+        this.orgError.set(err.error?.message || 'Failed to create organization.');
+      },
+    });
   }
 
   setTab(tab: 'apps' | 'docker') {
@@ -69,7 +108,34 @@ export class DashboardComponent implements OnInit {
     this.loadingApps.set(true);
     this.projectService.getProjects().subscribe({
       next: (data) => {
+        console.log('[Dashboard] Projects received:', data);
         this.projects.set(data);
+
+        // Group projects by organization for admins
+        if (this.isAdmin) {
+          const grouped = new Map<string, { projects: Project[]; orgName: string }>();
+          data.forEach((project) => {
+            const orgId = (project.owner as any)?.organizationId || 'no-org';
+            const orgName = (project as any).organizationName;
+            console.log(`[Dashboard] Project ${project.name}: orgId=${orgId}, orgName=${orgName}`);
+            if (!grouped.has(orgId)) {
+              grouped.set(orgId, { projects: [], orgName: orgName || orgId });
+            }
+            grouped.get(orgId)!.projects.push(project);
+          });
+
+          // Convert Map to array
+          const groupedArray = Array.from(grouped.entries()).map(([orgId, group]) => ({
+            orgId,
+            orgName: group.orgName === 'no-org' ? 'No Organization' : group.orgName,
+            projects: group.projects,
+          }));
+          console.log('[Dashboard] Grouped projects:', groupedArray);
+          this.projectsByOrg.set(groupedArray);
+        } else {
+          this.projectsByOrg.set([]);
+        }
+
         this.loadingApps.set(false);
       },
       error: () => {
@@ -105,7 +171,7 @@ export class DashboardComponent implements OnInit {
   }
 
   viewContainerLogs(c: DockerContainer) {
-    this.selectedContainerName.set(c.names[0] || c.id.substring(0, 12));
+    this.selectedContainerName.set(c.projectName || c.names[0] || c.id.substring(0, 12));
     this.selectedContainerLogs.set('');
     this.loadingLogs.set(true);
     this.dockerService.getContainerLogs(c.id, 100).subscribe({
@@ -150,10 +216,9 @@ export class DashboardComponent implements OnInit {
 
     const newProject: Partial<Project> = {
       name: this.newProjectName(),
-      description: this.newProjectDesc(),
       port: this.newProjectPort(),
       domain: this.newProjectDomain() ? this.newProjectDomain().trim() : undefined,
-      envVariables: {},
+      env: {},
     };
 
     if (this.deploySource() === 'git') {
@@ -179,7 +244,6 @@ export class DashboardComponent implements OnInit {
 
   private resetForm() {
     this.newProjectName.set('');
-    this.newProjectDesc.set('');
     this.newProjectGitUrl.set('');
     this.newProjectBranch.set('main');
     this.newProjectImage.set('');

@@ -9,6 +9,12 @@ interface User {
   id: string;
   email: string;
   role: string;
+  organizationId?: string;
+  permissions?: {
+    canDeploy: boolean;
+    canEdit: boolean;
+    canView: boolean;
+  };
 }
 
 interface AuthResponse {
@@ -50,6 +56,39 @@ export class AuthService {
       .pipe(
         tap((response) => this.handleAuthentication(response))
       );
+  }
+
+  createOrganization(name: string, description?: string): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/auth/create-organization`, {
+        name,
+        description,
+      })
+      .pipe(
+        tap((response) => this.handleAuthentication(response))
+      );
+  }
+
+  /**
+   * Updates the organization's name.
+   * @param orgId The organization ID.
+   * @param newName The new organization name.
+   */
+  getOrganization(orgId: string): Observable<any> {
+    return this.http.get(`${environment.apiUrl}/organizations/${orgId}`);
+  }
+
+  updateOrganizationName(orgId: string, newName: string) {
+    return this.http.put(`${environment.apiUrl}/organizations/${orgId}`, { name: newName }).pipe(
+      tap(() => {
+        // Update the locally stored user with the new organization name
+        const user = this.currentUserSignal();
+        if (user) {
+          sessionStorage.setItem('user', JSON.stringify(user));
+          this.currentUserSignal.set(user);
+        }
+      })
+    );
   }
 
   logout(): void {

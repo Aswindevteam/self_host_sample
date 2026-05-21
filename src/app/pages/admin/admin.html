@@ -1,0 +1,261 @@
+<div class="admin-page">
+  <div class="content-header">
+    <div>
+      <h1>Admin Panel</h1>
+      <p class="subtitle">Manage organizations, users, and projects</p>
+    </div>
+    <a routerLink="/dashboard" class="action-btn secondary">← Back to Dashboard</a>
+  </div>
+
+  <div class="admin-content">
+    <!-- Organizations Table -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div>
+          <h2>Organizations</h2>
+          <p class="card-subtitle">All organizations in the system</p>
+        </div>
+        <button class="refresh-btn" (click)="loadOrganizations()" [disabled]="loadingOrgs()">
+          🔄 Refresh
+        </button>
+      </div>
+
+      @if (loadingOrgs()) {
+        <div class="loading-state">
+          <span class="spinner"></span>
+          <p>Loading organizations...</p>
+        </div>
+      } @else {
+        @if (organizations().length === 0) {
+          <div class="empty-state">
+            <p>No organizations found.</p>
+          </div>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th>Created At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (org of organizations(); track org._id) {
+                <tr>
+                  <td>
+                    @if (editOrgState().orgId === org._id && editOrgState().isEditing) {
+                      <input
+                        type="text"
+                        [(ngModel)]="editOrgState().newName"
+                        class="table-input"
+                      />
+                    } @else {
+                      {{ org.name }}
+                    }
+                  </td>
+                  <td class="text-muted">{{ org._id }}</td>
+                  <td>{{ org.createdAt | date:'short' }}</td>
+                  <td>
+                    @if (editOrgState().orgId === org._id && editOrgState().isEditing) {
+                      <button class="action-btn-sm success" (click)="saveOrgName()" [disabled]="editLoading()">
+                        Save
+                      </button>
+                      <button class="action-btn-sm secondary" (click)="cancelEditOrg()">Cancel</button>
+                    } @else {
+                      <button class="action-btn-sm" (click)="startEditOrg(org)">Edit</button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      }
+
+      @if (editError()) {
+        <div class="error-banner">{{ editError() }}</div>
+      }
+    </div>
+
+    <!-- Users Table -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div>
+          <h2>Users</h2>
+          <p class="card-subtitle">All users in the system</p>
+        </div>
+        <button class="refresh-btn" (click)="loadUsers()" [disabled]="loadingUsers()">
+          🔄 Refresh
+        </button>
+      </div>
+
+      @if (loadingUsers()) {
+        <div class="loading-state">
+          <span class="spinner"></span>
+          <p>Loading users...</p>
+        </div>
+      } @else {
+        @if (users().length === 0) {
+          <div class="empty-state">
+            <p>No users found.</p>
+          </div>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Organization ID</th>
+                <th>Permissions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of users(); track user._id) {
+                <tr>
+                  <td>{{ user.email }}</td>
+                  <td>
+                    <span class="role-badge {{ user.role }}">{{ user.role }}</span>
+                  </td>
+                  <td class="text-muted">{{ user.organizationId || '-' }}</td>
+                  <td>
+                    @if (user.permissions) {
+                      <div class="permissions">
+                        @if (user.permissions.canView) { <span class="perm-badge">View</span> }
+                        @if (user.permissions.canEdit) { <span class="perm-badge">Edit</span> }
+                        @if (user.permissions.canDeploy) { <span class="perm-badge">Deploy</span> }
+                      </div>
+                    } @else {
+                      <span class="text-muted">-</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      }
+    </div>
+
+    <!-- Projects Table -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div>
+          <h2>Projects</h2>
+          <p class="card-subtitle">All projects in the system</p>
+        </div>
+        <button class="refresh-btn" (click)="loadProjects()" [disabled]="loadingProjects()">
+          🔄 Refresh
+        </button>
+      </div>
+
+      @if (loadingProjects()) {
+        <div class="loading-state">
+          <span class="spinner"></span>
+          <p>Loading projects...</p>
+        </div>
+      } @else {
+        @if (projects().length === 0) {
+          <div class="empty-state">
+            <p>No projects found.</p>
+          </div>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Owner ID</th>
+                <th>Port</th>
+                <th>Domain</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (project of projects(); track project._id) {
+                <tr>
+                  <td>
+                    <a routerLink="/project/{{ project._id }}" class="project-link">{{ project.name }}</a>
+                  </td>
+                  <td>
+                    @if (project.gitUrl) { <span class="type-badge git">Git</span> }
+                    @else if (project.dockerImage) { <span class="type-badge docker">Docker</span> }
+                    @else if (project.distPath) { <span class="type-badge dist">Dist</span> }
+                    @else { <span class="text-muted">-</span> }
+                  </td>
+                  <td class="text-muted">{{ project.owner }}</td>
+                  <td>{{ project.port || '-' }}</td>
+                  <td>{{ project.domain || '-' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      }
+    </div>
+
+    <!-- Create Org Admin Form -->
+    <div class="glass-card">
+      <div class="card-header">
+        <h2>Create Organization Admin</h2>
+        <p class="card-subtitle">Add a new organization admin</p>
+      </div>
+
+      <form (submit)="onCreateOrgAdmin(); $event.preventDefault()">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            [(ngModel)]="email"
+            placeholder="admin@example.com"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            [(ngModel)]="password"
+            placeholder="••••••••"
+            required
+            minlength="6"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="organizationName">Organization Name</label>
+          <input
+            type="text"
+            id="organizationName"
+            name="organizationName"
+            [(ngModel)]="organizationName"
+            placeholder="My Organization"
+            required
+          />
+        </div>
+
+        @if (createError()) {
+          <div class="error-banner">{{ createError() }}</div>
+        }
+
+        @if (createSuccess()) {
+          <div class="success-banner">{{ createSuccess() }}</div>
+        }
+
+        <div class="form-actions">
+          <button type="submit" class="submit-btn" [disabled]="createLoading()">
+            @if (createLoading()) {
+              <span class="spinner"></span> Creating...
+            } @else {
+              Create Org Admin
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

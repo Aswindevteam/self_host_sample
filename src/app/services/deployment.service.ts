@@ -5,10 +5,11 @@ import { environment } from '../../environments/environment';
 
 export interface Deployment {
   _id: string;
-  project: string;
-  status: 'PENDING' | 'BUILDING' | 'RUNNING' | 'FAILED' | 'STOPPED';
+  projectId: string;
+  status: 'PENDING' | 'BUILDING' | 'RUNNING' | 'FAILED';
   containerId?: string;
-  logs: string;
+  logs: string[];
+  imageName?: string;
   createdAt: string;
 }
 

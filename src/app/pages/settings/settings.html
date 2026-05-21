@@ -1,0 +1,143 @@
+<div class="settings-page">
+  <div class="page-header">
+    <h1>Settings</h1>
+    <p class="subtitle">Manage your account and organization preferences.</p>
+  </div>
+
+  <div class="settings-grid">
+    <!-- Account Info -->
+    <div class="settings-card glass-card">
+      <h3>Account</h3>
+      <div class="info-row">
+        <span class="label">Email</span>
+        <span class="val">{{ authService.currentUser()?.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Role</span>
+        <span class="val role-badge" [class.admin]="isAdmin">{{ authService.currentUser()?.role }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Organization ID</span>
+        <span class="val mono">{{ authService.currentUser()?.organizationId || '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Name</span>
+        <span class="val">{{ orgName() || '—' }}</span>
+      </div>
+
+      <button class="danger-btn" (click)="authService.logout()">Log Out</button>
+
+
+</div>
+
+    <!-- Platform Info -->
+    <div class="settings-card glass-card">
+      <h3>Platform</h3>
+      <div class="info-row"><span class="label">Version</span><span class="val">LaunchPad v1.0</span></div>
+      <div class="info-row"><span class="label">Backend</span><span class="val">NestJS + MongoDB</span></div>
+      <div class="info-row"><span class="label">Frontend</span><span class="val">Angular 19</span></div>
+      <div class="info-row"><span class="label">Container Runtime</span><span class="val">Docker</span></div>
+    </div>
+
+    @if (isAdmin) {
+      <div class="settings-card glass-card full-width">
+        <h3>⚠️ Admin Zone</h3>
+        <p class="hint">As an administrator you have access to all organizations' projects, Docker Engine control, and system-wide deployments.</p>
+        <div class="admin-capabilities">
+          <div class="cap-item">✅ View &amp; manage all organizations' projects</div>
+          <div class="cap-item">✅ Start / Stop / Restart Docker containers</div>
+          <div class="cap-item">✅ Deploy for any organization</div>
+          <div class="cap-item">✅ Delete projects across all organizations</div>
+        </div>
+      </div>
+    }
+
+    @if (isAdmin) {
+      <div class="settings-card glass-card full-width">
+        <h3>👥 Organization Users</h3>
+        <p class="hint">Manage user permissions in your organization.</p>
+
+        @if (message()) {
+          <div class="alert" [class.alert-success]="message()?.type === 'success'" [class.alert-error]="message()?.type === 'error'">
+            {{ message()?.text }}
+          </div>
+        }
+
+        <div class="users-list">
+          @if (loadingUsers() || loadingProjects()) {
+            <div class="loading-state">
+              <span class="spinner"></span> Loading users and projects...
+            </div>
+          } @else {
+            @for (user of users(); track user._id) {
+              <div class="user-card-item" [class.editing]="editingUserId() === user._id">
+                <div class="user-card-main">
+                  <div class="user-details">
+                    <span class="user-email-text">{{ user.email }}</span>
+                    <span class="user-role-text-badge" [class.user-role-admin]="user.role === 'ADMIN'">
+                      {{ user.role }}
+                    </span>
+                  </div>
+                  <div class="user-permissions-badges">
+                    @if (user.role !== 'ADMIN') {
+                      <span class="perm-badge" [class.perm-on]="user.permissions?.canDeploy !== false" [class.perm-off]="user.permissions?.canDeploy === false">Deploy</span>
+                      <span class="perm-badge" [class.perm-on]="user.permissions?.canEdit !== false" [class.perm-off]="user.permissions?.canEdit === false">Edit</span>
+                      <span class="perm-badge" [class.perm-on]="user.permissions?.canView !== false" [class.perm-off]="user.permissions?.canView === false">View</span>
+                    }
+                  </div>
+                  <div class="user-actions">
+                    @if (editingUserId() !== user._id) {
+                      <button class="action-btn" (click)="startEditPermissions(user)" [disabled]="user.role === 'ADMIN'">
+                        Manage Permissions
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                @if (editingUserId() === user._id) {
+                  <div class="project-selector-panel">
+                    <h4>Manage Permissions for {{ user.email }}</h4>
+
+                    <!-- Permission Toggles -->
+                    <div class="permissions-section">
+                      <span class="permissions-label">Permissions</span>
+                      <div class="permission-toggles">
+                        <label class="toggle-label">
+                          <span class="toggle-text">Deploy</span>
+                          <div class="toggle-switch" [class.active]="editCanDeploy()" (click)="editCanDeploy.set(!editCanDeploy())">
+                            <div class="toggle-knob"></div>
+                          </div>
+                        </label>
+                        <label class="toggle-label">
+                          <span class="toggle-text">Edit</span>
+                          <div class="toggle-switch" [class.active]="editCanEdit()" (click)="editCanEdit.set(!editCanEdit())">
+                            <div class="toggle-knob"></div>
+                          </div>
+                        </label>
+                        <label class="toggle-label">
+                          <span class="toggle-text">View</span>
+                          <div class="toggle-switch" [class.active]="editCanView()" (click)="editCanView.set(!editCanView())">
+                            <div class="toggle-knob"></div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="panel-actions">
+                      <button class="save-btn" (click)="savePermissions(user._id)" [disabled]="savingUser() === user._id">
+                        {{ savingUser() === user._id ? 'Saving...' : 'Save Changes' }}
+                      </button>
+                      <button class="cancel-btn" (click)="cancelEdit()">Cancel</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @empty {
+              <div class="empty-users">No other users found in this organization.</div>
+            }
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

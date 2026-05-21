@@ -3,13 +3,15 @@ import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { startWith, switchMap, takeWhile } from 'rxjs/operators';
 import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ProjectService, Project } from '../../services/project.service';
 import { DeploymentService, Deployment } from '../../services/deployment.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, FormsModule],
   templateUrl: './project-detail.html',
   styleUrl: './project-detail.scss',
 })
@@ -18,6 +20,100 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private projectService = inject(ProjectService);
   private deploymentService = inject(DeploymentService);
+  protected authService = inject(AuthService);
+
+  protected get isAdmin() {
+    return this.authService.currentUser()?.role === 'admin';
+  }
+
+  protected get isOrgAdmin() {
+    return this.authService.currentUser()?.role === 'org-admin';
+  }
+
+  protected get canEdit() {
+    const user = this.authService.currentUser();
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (user.role === 'org-admin') return true;
+    return user.permissions?.canEdit !== false;
+  }
+
+  protected get canDelete() {
+    const user = this.authService.currentUser();
+    if (!user) return false;
+    return user.role === 'admin' || user.role === 'org-admin';
+  }
+
+  // Editing state
+  protected editingConfig = signal(false);
+  protected editType = signal<'git' | 'docker' | 'dist'>('git');
+  protected editGitUrl = signal('');
+  protected editBranch = signal('');
+  protected editDockerImage = signal('');
+  protected editDistPath = signal('');
+  protected editPort = signal(3000);
+  protected editDomain = signal('');
+  protected savingConfig = signal(false);
+  protected configError = signal('');
+
+  startEditConfig() {
+    const proj = this.project();
+    if (proj) {
+      if (proj.dockerImage) {
+        this.editType.set('docker');
+      } else if (proj.distPath) {
+        this.editType.set('dist');
+      } else {
+        this.editType.set('git');
+      }
+      this.editGitUrl.set(proj.gitUrl || '');
+      this.editBranch.set(proj.branch || 'main');
+      this.editDockerImage.set(proj.dockerImage || '');
+      this.editDistPath.set(proj.distPath || '');
+      this.editPort.set(proj.port || 3000);
+      this.editDomain.set(proj.domain || '');
+      this.configError.set('');
+      this.editingConfig.set(true);
+    }
+  }
+
+  cancelEditConfig() {
+    this.editingConfig.set(false);
+    this.configError.set('');
+  }
+
+  saveConfig() {
+    this.savingConfig.set(true);
+    this.configError.set('');
+
+    const updatedData: Partial<Project> = {
+      port: this.editPort(),
+      domain: this.editDomain() || undefined,
+    };
+
+    const type = this.editType();
+
+    if (type === 'docker') {
+      updatedData.dockerImage = this.editDockerImage();
+    } else if (type === 'dist') {
+      updatedData.distPath = this.editDistPath();
+    } else {
+      updatedData.gitUrl = this.editGitUrl();
+      updatedData.branch = this.editBranch() || 'main';
+    }
+
+    this.projectService.updateProject(this.projectId(), updatedData).subscribe({
+      next: (updatedProj) => {
+        this.project.set(updatedProj);
+        this.savingConfig.set(false);
+        this.editingConfig.set(false);
+      },
+      error: (err) => {
+        this.savingConfig.set(false);
+        this.configError.set(err.error?.message || 'Failed to update configuration.');
+      }
+    });
+  }
 
   protected projectId = signal<string>('');
   protected project = signal<Project | null>(null);
@@ -130,7 +226,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   copyLogs() {
-    const logsText = this.selectedDeployment()?.logs || '';
+    const logsArray = this.selectedDeployment()?.logs || [];
+    const logsText = Array.isArray(logsArray) ? logsArray.join('\n') : '';
     if (logsText) {
       navigator.clipboard.writeText(logsText).then(() => {
         this.copyText.set('Copied!');

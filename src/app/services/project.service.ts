@@ -6,14 +6,15 @@ import { environment } from '../../environments/environment';
 export interface Project {
   _id: string;
   name: string;
-  description?: string;
   gitUrl?: string;
   dockerImage?: string;
+  distPath?: string;
   branch?: string;
   port: number;
   domain?: string;
-  envVariables: Record<string, string>;
+  env: Record<string, string>;
   createdAt: string;
+  owner?: { _id: string; email: string } | string;
 }
 
 @Injectable({

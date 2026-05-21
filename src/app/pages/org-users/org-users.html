@@ -1,0 +1,246 @@
+<div class="org-users-page">
+  <div class="content-header">
+    <div>
+      <h1>Organization Users</h1>
+      <p class="subtitle">Manage users and project assignments in your organization</p>
+    </div>
+    <a routerLink="/dashboard" class="action-btn secondary">← Back to Dashboard</a>
+  </div>
+
+  <div class="org-users-content">
+    <!-- Create User Section -->
+    <div class="glass-card">
+      <div class="card-header">
+        <h2>Create New User</h2>
+        <p class="card-subtitle">Add a new user to your organization</p>
+      </div>
+
+      <form (submit)="onCreateUser(); $event.preventDefault()">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            [(ngModel)]="email"
+            placeholder="user@example.com"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            [(ngModel)]="password"
+            placeholder="••••••••"
+            required
+            minlength="6"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select id="role" name="role" [(ngModel)]="role">
+            <option value="user">User</option>
+            <option value="org-admin">Org Admin</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Permissions</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="canView" />
+              <span>Can View</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="canEdit" />
+              <span>Can Edit</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="canDeploy" />
+              <span>Can Deploy</span>
+            </label>
+          </div>
+        </div>
+
+        @if (createError()) {
+          <div class="error-banner">{{ createError() }}</div>
+        }
+
+        @if (createSuccess()) {
+          <div class="success-banner">{{ createSuccess() }}</div>
+        }
+
+        <div class="form-actions">
+          <button type="submit" class="submit-btn" [disabled]="createLoading()">
+            @if (createLoading()) {
+              <span class="spinner"></span> Creating...
+            } @else {
+              Create User
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Users List Section -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div>
+          <h2>Users in Organization</h2>
+          <p class="card-subtitle">All users in your organization</p>
+        </div>
+        <button class="refresh-btn" (click)="loadUsers()" [disabled]="loadingUsers()">
+          🔄 Refresh
+        </button>
+      </div>
+
+      @if (loadingUsers()) {
+        <div class="loading-state">
+          <span class="spinner"></span>
+          <p>Loading users...</p>
+        </div>
+      } @else {
+        @if (users().length === 0) {
+          <div class="empty-state">
+            <p>No users in your organization yet.</p>
+          </div>
+        } @else {
+          <div class="users-list">
+            @for (user of users(); track user._id) {
+              <div class="user-item">
+                @if (editingUserId() === user._id) {
+                  <div class="user-edit-form">
+                    <div class="form-group">
+                      <label>Role</label>
+                      <select [(ngModel)]="editUserRole">
+                        <option value="user">User</option>
+                        <option value="org-admin">Org Admin</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Permissions</label>
+                      <div class="checkbox-group">
+                        <label class="checkbox-label">
+                          <input type="checkbox" [(ngModel)]="editUserCanView" />
+                          <span>Can View</span>
+                        </label>
+                        <label class="checkbox-label">
+                          <input type="checkbox" [(ngModel)]="editUserCanEdit" />
+                          <span>Can Edit</span>
+                        </label>
+                        <label class="checkbox-label">
+                          <input type="checkbox" [(ngModel)]="editUserCanDeploy" />
+                          <span>Can Deploy</span>
+                        </label>
+                      </div>
+                    </div>
+                    @if (editError()) {
+                      <div class="error-banner">{{ editError() }}</div>
+                    }
+                    @if (editSuccess()) {
+                      <div class="success-banner">{{ editSuccess() }}</div>
+                    }
+                    <div class="edit-actions">
+                      <button class="action-btn-sm success" (click)="onSaveUser()" [disabled]="editLoading()">
+                        @if (editLoading()) {
+                          <span class="spinner"></span> Saving...
+                        } @else {
+                          Save
+                        }
+                      </button>
+                      <button class="action-btn-sm secondary" (click)="cancelEditUser()">Cancel</button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="user-info">
+                    <h3>{{ user.email }}</h3>
+                    <span class="user-role">{{ user.role }}</span>
+                  </div>
+                  @if (user.permissions) {
+                    <div class="user-permissions">
+                      @if (user.permissions.canView) { <span class="permission-badge">View</span> }
+                      @if (user.permissions.canEdit) { <span class="permission-badge">Edit</span> }
+                      @if (user.permissions.canDeploy) { <span class="permission-badge">Deploy</span> }
+                    </div>
+                  }
+                  <button class="action-btn-sm" (click)="startEditUser(user)">Edit</button>
+                }
+              </div>
+            }
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Assign Project Section -->
+    <div class="glass-card">
+      <div class="card-header">
+        <h2>Assign Project to User</h2>
+        <p class="card-subtitle">Grant a user access to a specific project</p>
+      </div>
+
+      <form (submit)="onAssignProject(); $event.preventDefault()">
+        <div class="form-group">
+          <label for="assignProject">Project</label>
+          <select id="assignProject" name="assignProject" [(ngModel)]="assignProjectId" required>
+            <option value="">Select a project</option>
+            @for (project of projects(); track project._id) {
+              <option [value]="project._id">{{ project.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="assignUser">User</label>
+          <select id="assignUser" name="assignUser" [(ngModel)]="assignUserId" required>
+            <option value="">Select a user</option>
+            @for (user of users(); track user._id) {
+              <option [value]="user._id">{{ user.email }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Permissions</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="assignCanView" />
+              <span>Can View</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="assignCanEdit" />
+              <span>Can Edit</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="assignCanDeploy" />
+              <span>Can Deploy</span>
+            </label>
+          </div>
+        </div>
+
+        @if (assignError()) {
+          <div class="error-banner">{{ assignError() }}</div>
+        }
+
+        @if (assignSuccess()) {
+          <div class="success-banner">{{ assignSuccess() }}</div>
+        }
+
+        <div class="form-actions">
+          <button type="submit" class="submit-btn" [disabled]="assignLoading()">
+            @if (assignLoading()) {
+              <span class="spinner"></span> Assigning...
+            } @else {
+              Assign Project
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

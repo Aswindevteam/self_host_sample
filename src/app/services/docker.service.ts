@@ -10,6 +10,8 @@ export interface DockerContainer {
   state: string;
   status: string;
   ports: any[];
+  projectName?: string;
+  deploymentId?: string;
 }
 
 @Injectable({

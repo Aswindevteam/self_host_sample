@@ -1,0 +1,290 @@
+<div class="deploy-page">
+  <!-- Step Indicator -->
+  <div class="step-bar">
+    <div class="step" [class.active]="step() === 'source'" [class.done]="step() === 'config' || step() === 'review'">
+      <span class="step-num">1</span>
+      <span class="step-label">Source</span>
+    </div>
+    <div class="step-line" [class.done]="step() === 'config' || step() === 'review'"></div>
+    <div class="step" [class.active]="step() === 'config'" [class.done]="step() === 'review'">
+      <span class="step-num">2</span>
+      <span class="step-label">Configure</span>
+    </div>
+    <div class="step-line" [class.done]="step() === 'review'"></div>
+    <div class="step" [class.active]="step() === 'review'">
+      <span class="step-num">3</span>
+      <span class="step-label">Deploy</span>
+    </div>
+  </div>
+
+  <!-- ─── STEP 1: SOURCE ─── -->
+  @if (step() === 'source') {
+    <div class="glass-card step-card animate-in">
+      <h2>Choose Deploy Method</h2>
+      <p class="subtitle">Select how you want to deploy your application</p>
+
+      <div class="method-grid">
+        <button
+          class="method-card"
+          [class.selected]="deployMethod() === 'git'"
+          (click)="setMethod('git')"
+          id="method-git"
+        >
+          <span class="method-icon">⎇</span>
+          <h3>Deploy from Git</h3>
+          <p>Connect a GitHub/GitLab repo. LaunchPad clones, builds, and deploys automatically.</p>
+        </button>
+        <button
+          class="method-card"
+          [class.selected]="deployMethod() === 'dist'"
+          (click)="setMethod('dist')"
+          id="method-dist"
+        >
+          <span class="method-icon">📦</span>
+          <h3>Deploy from Dist</h3>
+          <p>Deploy a pre-built output folder (e.g. Angular/React dist) as a static site.</p>
+        </button>
+      </div>
+
+      <div class="form-section">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="projectName">Project Name *</label>
+            <input type="text" id="projectName" [(ngModel)]="projectName" placeholder="my-awesome-app" />
+          </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <input type="text" id="description" [(ngModel)]="description" placeholder="Optional description" />
+          </div>
+        </div>
+
+        @if (deployMethod() === 'git') {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="gitUrl">Git Repository URL *</label>
+              <input type="text" id="gitUrl" [(ngModel)]="gitUrl" placeholder="https://github.com/user/repo.git" />
+            </div>
+            <div class="form-group">
+              <label for="branch">Branch</label>
+              <input type="text" id="branch" [(ngModel)]="branch" placeholder="main" />
+            </div>
+          </div>
+        }
+
+        @if (deployMethod() === 'dist') {
+          <div class="form-group">
+            <label for="distPath">Dist Folder Path *</label>
+            <input type="text" id="distPath" [(ngModel)]="distPath" placeholder="dist/my-app or /absolute/path/to/dist" />
+            <span class="field-hint">Absolute path to your built output folder on this server</span>
+          </div>
+        }
+      </div>
+
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+
+      <div class="step-actions">
+        <a routerLink="/dashboard" class="btn-ghost">Cancel</a>
+        <button class="btn-primary" (click)="goToConfig()" id="btn-next-config">
+          Next: Configure →
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ─── STEP 2: CONFIG ─── -->
+  @if (step() === 'config') {
+    <div class="glass-card step-card animate-in">
+      <h2>Project Configuration</h2>
+      <p class="subtitle">Set runtime options, environment variables, and domain routing</p>
+
+      <!-- Runtime Config -->
+      <section class="config-section">
+        <h3 class="section-title">⚙️ Runtime</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="port">Container Port *</label>
+            <input type="number" id="port" [(ngModel)]="port" />
+            <span class="field-hint">The port your app listens on inside the container</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Nginx Config -->
+      <section class="config-section">
+        <h3 class="section-title">🌐 Nginx Reverse Proxy</h3>
+        <div class="toggle-row">
+          <label class="toggle-label">
+            <input type="checkbox" id="enableNginx" [(ngModel)]="enableNginx" />
+            <span class="toggle-switch"></span>
+            Enable Nginx proxy for this app
+          </label>
+        </div>
+
+        @if (enableNginx()) {
+          <div class="form-row">
+            <div class="form-group">
+              <label>Proxy Type</label>
+              <div class="radio-group">
+                <label class="radio-option" [class.selected]="nginxType() === 'reverse_proxy'">
+                  <input type="radio" name="nginxType" value="reverse_proxy" [(ngModel)]="nginxType" />
+                  <span>🔁 Reverse Proxy</span>
+                  <small>Forwards requests to your running container (dynamic apps, APIs)</small>
+                </label>
+                <label class="radio-option" [class.selected]="nginxType() === 'static'">
+                  <input type="radio" name="nginxType" value="static" [(ngModel)]="nginxType" />
+                  <span>📄 Static File Server</span>
+                  <small>Serves static files directly (React/Angular dist, plain HTML)</small>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="toggle-row">
+            <label class="toggle-label">
+              <input type="checkbox" id="enableDomain" [(ngModel)]="enableDomain" />
+              <span class="toggle-switch"></span>
+              Use custom domain / subdomain
+            </label>
+          </div>
+
+          @if (enableDomain()) {
+            <div class="form-group">
+              <label for="domain">Domain Name</label>
+              <input type="text" id="domain" [(ngModel)]="domain" placeholder="myapp.example.com or myapp.local" />
+              <span class="field-hint">Nginx will route requests matching this domain to your container</span>
+            </div>
+          }
+
+          <div class="form-group" style="margin-top:1rem">
+            <label for="nginxCustomConfig">Custom Nginx Config Block (Optional)</label>
+            <textarea
+              id="nginxCustomConfig"
+              [(ngModel)]="nginxCustomConfig"
+              rows="6"
+              class="code-textarea"
+              placeholder="# Additional nginx directives, e.g.:
+# add_header X-Frame-Options DENY;
+# proxy_read_timeout 300s;"
+            ></textarea>
+            <span class="field-hint">Advanced: injected inside the server block</span>
+          </div>
+        }
+      </section>
+
+      <!-- Environment Variables -->
+      <section class="config-section">
+        <div class="section-header-row">
+          <h3 class="section-title">🔑 Environment Variables</h3>
+          <button class="btn-sm" (click)="addEnvVar()" id="btn-add-env">+ Add Variable</button>
+        </div>
+
+        @if (envVars().length === 0) {
+          <p class="empty-hint">No environment variables set. Click "+ Add Variable" to add one.</p>
+        }
+
+        @for (env of envVars(); track $index) {
+          <div class="env-row">
+            <input
+              type="text"
+              [value]="env.key"
+              (input)="updateEnvKey($index, $any($event.target).value)"
+              placeholder="KEY"
+              class="env-key"
+            />
+            <span class="env-eq">=</span>
+            <input
+              type="text"
+              [value]="env.value"
+              (input)="updateEnvValue($index, $any($event.target).value)"
+              placeholder="value"
+              class="env-val"
+            />
+            <button class="btn-remove" (click)="removeEnvVar($index)">✕</button>
+          </div>
+        }
+      </section>
+
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+
+      <div class="step-actions">
+        <button class="btn-ghost" (click)="back()">← Back</button>
+        <button class="btn-primary" (click)="goToReview()" id="btn-next-review">
+          Review & Deploy →
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ─── STEP 3: REVIEW ─── -->
+  @if (step() === 'review') {
+    <div class="glass-card step-card animate-in">
+      <h2>Review & Deploy</h2>
+      <p class="subtitle">Double-check your configuration before deploying</p>
+
+      <div class="review-grid">
+        <div class="review-group">
+          <h4>Project</h4>
+          <div class="review-row"><span>Name</span><strong>{{ projectName() }}</strong></div>
+          @if (description()) {
+            <div class="review-row"><span>Description</span><strong>{{ description() }}</strong></div>
+          }
+          <div class="review-row"><span>Deploy Method</span>
+            <strong class="badge">{{ deployMethod() === 'git' ? '⎇ Git Repository' : '📦 Dist Folder' }}</strong>
+          </div>
+          @if (deployMethod() === 'git') {
+            <div class="review-row"><span>Repository</span><strong>{{ gitUrl() }}</strong></div>
+            <div class="review-row"><span>Branch</span><strong>{{ branch() }}</strong></div>
+          } @else {
+            <div class="review-row"><span>Dist Path</span><strong>{{ distPath() }}</strong></div>
+          }
+          <div class="review-row"><span>Container Port</span><strong>{{ port() }}</strong></div>
+        </div>
+
+        <div class="review-group">
+          <h4>Nginx / Domain</h4>
+          @if (enableNginx()) {
+            <div class="review-row"><span>Proxy</span><strong class="badge-green">Enabled</strong></div>
+            <div class="review-row"><span>Type</span><strong>{{ nginxType() === 'reverse_proxy' ? '🔁 Reverse Proxy' : '📄 Static' }}</strong></div>
+            @if (enableDomain() && domain()) {
+              <div class="review-row"><span>Domain</span><strong>{{ domain() }}</strong></div>
+            } @else {
+              <div class="review-row"><span>Domain</span><strong class="muted">None (port-based access)</strong></div>
+            }
+          } @else {
+            <div class="review-row"><span>Proxy</span><strong class="muted">Disabled</strong></div>
+          }
+        </div>
+
+        @if (envVars().length > 0) {
+          <div class="review-group">
+            <h4>Environment Variables</h4>
+            @for (env of envVars(); track $index) {
+              @if (env.key) {
+                <div class="review-row"><span>{{ env.key }}</span><strong>{{ env.value }}</strong></div>
+              }
+            }
+          </div>
+        }
+      </div>
+
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+
+      <div class="step-actions">
+        <button class="btn-ghost" (click)="back()" [disabled]="loading()">← Back</button>
+        <button class="btn-deploy" (click)="onDeploy()" [disabled]="loading()" id="btn-deploy">
+          @if (loading()) {
+            <span class="spinner"></span> Deploying...
+          } @else {
+            🚀 Deploy Now
+          }
+        </button>
+      </div>
+    </div>
+  }
+</div>

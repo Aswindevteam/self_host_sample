@@ -1,0 +1,102 @@
+<div class="docker-page">
+  <div class="page-header">
+    <div>
+      <h1>Docker Engine</h1>
+      <p class="subtitle">Monitor and control all running containers on this host.</p>
+    </div>
+    <button class="refresh-btn" (click)="load()" [disabled]="loading()" id="btn-refresh">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.48"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <span class="spinner large"></span>
+      <p>Connecting to Docker daemon...</p>
+    </div>
+  } @else if (containers().length === 0) {
+    <div class="empty-state glass-card">
+      <div class="empty-icon">🐳</div>
+      <h3>No containers found</h3>
+      <p>No deployed application containers exist yet. Deploy a project first.</p>
+    </div>
+  } @else {
+    <div class="table-card glass-card">
+      <table class="docker-table">
+        <thead>
+          <tr>
+            <th>Application</th>
+            <th>Version</th>
+            <th>State</th>
+            <th>Status</th>
+            <th>Ports</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of containers(); track c.id) {
+            <tr>
+              <td class="col-name">
+                <span class="app-name">{{ c.projectName || c.names[0] }}</span>
+                <span class="docker-id" [title]="c.names[0]">{{ c.names[0] }}</span>
+              </td>
+              <td class="col-version">
+                @if (c.deploymentId) {
+                  <span class="version-tag">#{{ c.deploymentId.length > 18 ? c.deploymentId.substring(18) : c.deploymentId }}</span>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td>
+                <span class="state-badge" [class]="c.state">{{ c.state }}</span>
+              </td>
+              <td class="col-status">{{ c.status }}</td>
+              <td class="col-ports">
+                @for (p of c.ports; track p.PrivatePort) {
+                  <span class="port-chip">{{ p.PublicPort || '?' }}→{{ p.PrivatePort }}</span>
+                } @empty {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td class="col-actions">
+                <div class="btn-group">
+                  @if (isAdmin) {
+                    @if (c.state !== 'running') {
+                      <button class="ctrl-btn start" (click)="start(c.id)">Start</button>
+                    } @else {
+                      <button class="ctrl-btn stop" (click)="stop(c.id)">Stop</button>
+                    }
+                    <button class="ctrl-btn restart" (click)="restart(c.id)">Restart</button>
+                  }
+                  <button class="ctrl-btn logs" (click)="viewLogs(c)">Logs</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- Logs Modal -->
+@if (selectedContainerLogs() !== null) {
+  <div class="modal-backdrop" (click)="closeLogs()">
+    <div class="modal-card glass-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ selectedContainerName() }} — Logs</h3>
+        <button class="close-btn" (click)="closeLogs()">×</button>
+      </div>
+      <div class="modal-body">
+        @if (loadingLogs()) {
+          <div class="loading-state"><span class="spinner"></span></div>
+        } @else {
+          <pre class="terminal-logs"><code>{{ selectedContainerLogs() }}</code></pre>
+        }
+      </div>
+    </div>
+  </div>
+}
