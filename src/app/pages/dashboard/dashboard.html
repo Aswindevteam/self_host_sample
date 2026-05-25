@@ -51,11 +51,11 @@
       <button class="tab-btn" [class.active]="activeTab() === 'apps'" (click)="setTab('apps')">
         Applications
       </button>
-      @if (isAdmin || authService.currentUser()?.role !== 'user') {
+      <!-- @if (isAdmin || authService.currentUser()?.role !== 'user') {
         <button class="tab-btn" [class.active]="activeTab() === 'docker'" (click)="setTab('docker')">
           Docker Engine
         </button>
-      }
+      } -->
       <button class="tab-btn" [class.active]="activeTab() === 'metrics'" (click)="setTab('metrics')">
         API Metrics Graph
       </button>
@@ -121,28 +121,43 @@
             @if (deploySource() === 'git') {
               <div class="form-group">
                 <label for="gitUrl">Git Repository URL (HTTPS)</label>
-                <input
-                  type="text"
-                  class="modern-input"
-                  id="gitUrl"
-                  name="gitUrl"
-                  [(ngModel)]="newProjectGitUrl"
-                  placeholder="https://github.com/username/repository.git"
-                  required
-                />
+                <div style="display: flex; gap: 0.5rem;">
+                  <input
+                    type="text"
+                    class="modern-input"
+                    id="gitUrl"
+                    name="gitUrl"
+                    style="flex: 1;"
+                    [(ngModel)]="newProjectGitUrl"
+                    placeholder="https://github.com/username/repository.git"
+                    required
+                  />
+                  <button type="button" class="btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.75rem; height: auto;" (click)="fetchBranches()" [disabled]="!newProjectGitUrl() || loadingBranches()">
+                    {{ loadingBranches() ? 'Loading...' : 'Fetch Branches' }}
+                  </button>
+                </div>
               </div>
 
               <div class="form-group">
                 <label for="branch">Target Branch</label>
-                <input
-                  type="text"
-                  class="modern-input"
-                  id="branch"
-                  name="branch"
-                  [(ngModel)]="newProjectBranch"
-                  placeholder="main"
-                  required
-                />
+                @if (availableBranches().length > 0) {
+                  <select id="branch" name="branch" class="modern-input" [(ngModel)]="newProjectBranch" style="width: 100%;">
+                    <option value="">Select a branch</option>
+                    @for (branch of availableBranches(); track branch) {
+                      <option [value]="branch">{{ branch }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input
+                    type="text"
+                    class="modern-input"
+                    id="branch"
+                    name="branch"
+                    [(ngModel)]="newProjectBranch"
+                    placeholder="main"
+                    required
+                  />
+                }
               </div>
             }
 

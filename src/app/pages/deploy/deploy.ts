@@ -44,6 +44,8 @@ export class DeployComponent implements OnInit {
   protected projectName = signal('');
   protected description = signal('');
   protected gitUrl = signal('');
+  protected availableBranches = signal<string[]>([]);
+  protected loadingBranches = signal(false);
   protected branch = signal('main');
   protected distPath = signal('');
 
@@ -169,6 +171,22 @@ export class DeployComponent implements OnInit {
     this.distPath.set('');
   }
 
+  fetchBranches() {
+    const url = this.gitUrl();
+    if (!url) return;
+    this.loadingBranches.set(true);
+    this.projectService.getGitBranches(url).subscribe({
+      next: (branches) => {
+        this.availableBranches.set(branches);
+        this.loadingBranches.set(false);
+      },
+      error: () => {
+        this.availableBranches.set([]);
+        this.loadingBranches.set(false);
+      }
+    });
+  }
+
   uploadDistFolder() {
     const files = this.distFiles();
     if (!files.length) return;
@@ -262,6 +280,14 @@ export class DeployComponent implements OnInit {
       }
     }
     this.error.set('');
+    
+    // Auto-detect the proxy type based on the deployment method
+    if (this.deployMethod() === 'dist') {
+      this.nginxType.set('static');
+    } else {
+      this.nginxType.set('reverse_proxy');
+    }
+
     this.step.set('config');
   }
 

@@ -51,4 +51,8 @@ export class ProjectService {
   getNginxConfigHistory(id: string): Observable<any[]> {
     return this.http.get<any[]>(`${environment.apiUrl}/projects/${id}/nginx-history`);
   }
+
+  getGitBranches(url: string): Observable<string[]> {
+    return this.http.post<string[]>(`${environment.apiUrl}/projects/git-branches`, { url });
+  }
 }

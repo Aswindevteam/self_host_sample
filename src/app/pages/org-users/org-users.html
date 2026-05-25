@@ -152,7 +152,9 @@
             <label for="role">Role</label>
             <select id="role" name="role" class="table-input" style="width: 100%" [(ngModel)]="role">
               <option value="user">User</option>
-              <option value="org-admin">Org Admin</option>
+              @if (!isOrgAdmin) {
+                <option value="org-admin">Org Admin</option>
+              }
             </select>
           </div>
 
@@ -261,7 +263,9 @@
             <label>Role</label>
             <select class="table-input" style="width: 100%" name="editUserRole" [(ngModel)]="editUserRole">
               <option value="user">User</option>
-              <option value="org-admin">Org Admin</option>
+              @if (!isOrgAdmin) {
+                <option value="org-admin">Org Admin</option>
+              }
             </select>
           </div>
           <div class="form-group">

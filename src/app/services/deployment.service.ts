@@ -34,4 +34,8 @@ export class DeploymentService {
   rollbackDeployment(id: string): Observable<Deployment> {
     return this.http.post<Deployment>(`${environment.apiUrl}/deployments/${id}/rollback`, {});
   }
+
+  terminateDeployment(id: string): Observable<Deployment> {
+    return this.http.post<Deployment>(`${environment.apiUrl}/deployments/${id}/terminate`, {});
+  }
 }

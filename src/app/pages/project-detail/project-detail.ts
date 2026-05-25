@@ -55,6 +55,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   // Editing state
   protected editingConfig = signal(false);
   protected editType = signal<'git' | 'docker' | 'dist'>('git');
+  protected editProjectName = signal('');
   protected editGitUrl = signal('');
   protected editBranch = signal('');
   protected editDockerImage = signal('');
@@ -62,6 +63,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   protected editPort = signal(3000);
   protected editDomain = signal('');
   protected editCustomNginxConfig = signal('');
+  protected availableBranches = signal<string[]>([]);
+  protected loadingBranches = signal(false);
   protected savingConfig = signal(false);
   protected configError = signal('');
   
@@ -98,6 +101,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       } else {
         this.editType.set('git');
       }
+      this.editProjectName.set(proj.name || '');
       this.editGitUrl.set(proj.gitUrl || '');
       this.editBranch.set(proj.branch || 'main');
       this.editDockerImage.set(proj.dockerImage || '');
@@ -113,7 +117,27 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.cfgDistUploaded.set(false);
       this.cfgDistUploading.set(false);
       this.editingConfig.set(true);
+      
+      if (this.editType() === 'git' && proj.gitUrl) {
+        this.fetchBranches();
+      }
     }
+  }
+
+  fetchBranches() {
+    const url = this.editGitUrl();
+    if (!url) return;
+    this.loadingBranches.set(true);
+    this.projectService.getGitBranches(url).subscribe({
+      next: (branches) => {
+        this.availableBranches.set(branches);
+        this.loadingBranches.set(false);
+      },
+      error: () => {
+        this.availableBranches.set([]);
+        this.loadingBranches.set(false);
+      }
+    });
   }
 
   cancelEditConfig() {
@@ -279,6 +303,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.configError.set('');
 
     const updatedData: Partial<Project> = {
+      name: this.editProjectName() || undefined,
       port: this.editPort(),
       domain: this.editDomain() || undefined,
       customNginxConfig: this.editCustomNginxConfig() || undefined,
@@ -532,6 +557,21 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.triggerLoading.set(false);
+      },
+    });
+  }
+
+  onTerminate(deploymentId: string) {
+    if (!confirm('Are you sure you want to forcibly terminate this deployment?')) return;
+    this.deploymentService.terminateDeployment(deploymentId).subscribe({
+      next: (updatedDep) => {
+        this.deployments.update((current) => 
+          current.map(d => d._id === updatedDep._id ? updatedDep : d)
+        );
+        this.selectedDeployment.set(updatedDep);
+      },
+      error: (err) => {
+        console.error('Failed to terminate deployment', err);
       },
     });
   }

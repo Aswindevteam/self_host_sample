@@ -62,11 +62,25 @@
           <div class="form-row">
             <div class="form-group">
               <label for="gitUrl">Git Repository URL *</label>
-              <input type="text" id="gitUrl" [(ngModel)]="gitUrl" placeholder="https://github.com/user/repo.git" />
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="gitUrl" [(ngModel)]="gitUrl" style="flex: 1;" placeholder="https://github.com/user/repo.git" />
+                <button type="button" class="btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.75rem; height: auto;" (click)="fetchBranches()" [disabled]="!gitUrl() || loadingBranches()">
+                  {{ loadingBranches() ? 'Loading...' : 'Fetch Branches' }}
+                </button>
+              </div>
             </div>
             <div class="form-group">
               <label for="branch">Branch</label>
-              <input type="text" id="branch" [(ngModel)]="branch" placeholder="main" />
+              @if (availableBranches().length > 0) {
+                <select id="branch" name="branch" class="modern-input" [(ngModel)]="branch" style="width: 100%;">
+                  <option value="">Select a branch</option>
+                  @for (branch of availableBranches(); track branch) {
+                    <option [value]="branch">{{ branch }}</option>
+                  }
+                </select>
+              } @else {
+                <input type="text" id="branch" [(ngModel)]="branch" placeholder="main" />
+              }
             </div>
           </div>
         }
@@ -181,24 +195,8 @@
         </div>
 
         @if (enableNginx()) {
-          <div class="form-row">
-            <div class="form-group">
-              <label>Proxy Type</label>
-              <div class="radio-group">
-                <label class="radio-option" [class.selected]="nginxType() === 'reverse_proxy'">
-                  <input type="radio" name="nginxType" value="reverse_proxy" [(ngModel)]="nginxType" />
-                  <span>🔁 Reverse Proxy</span>
-                  <small>Forwards requests to your running container (dynamic apps, APIs)</small>
-                </label>
-                <label class="radio-option" [class.selected]="nginxType() === 'static'">
-                  <input type="radio" name="nginxType" value="static" [(ngModel)]="nginxType" />
-                  <span>📄 Static File Server</span>
-                  <small>Serves static files directly (React/Angular dist, plain HTML)</small>
-                </label>
-              </div>
-            </div>
-          </div>
-
+          <!-- Proxy Type is now automatically derived from the deployment source (dist -> static, git/image -> reverse_proxy) -->
+          
           <div class="toggle-row">
             <label class="toggle-label">
               <input type="checkbox" id="enableDomain" [(ngModel)]="enableDomain" />

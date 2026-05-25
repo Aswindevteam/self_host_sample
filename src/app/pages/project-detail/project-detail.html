@@ -83,6 +83,11 @@
           <div class="config-edit-form" style="display: flex; flex-direction: column; gap: 1rem;">
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+              <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Project Name</span>
+                <input type="text" class="modern-input" [value]="editProjectName()" (input)="editProjectName.set($event.target.value)" placeholder="e.g. My Project" [disabled]="!isAdmin && !isOrgAdmin" [style.opacity]="(!isAdmin && !isOrgAdmin) ? '0.6' : '1'" [style.cursor]="(!isAdmin && !isOrgAdmin) ? 'not-allowed' : 'text'" />
+              </div>
+
               @if (editType() === 'docker') {
                 <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
                   <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Docker Image</span>
@@ -154,11 +159,25 @@
               } @else {
                 <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
                   <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Repository Git URL</span>
-                  <input type="text" class="modern-input" [value]="editGitUrl()" (input)="editGitUrl.set($event.target.value)" />
+                  <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" class="modern-input" style="flex: 1;" [value]="editGitUrl()" (input)="editGitUrl.set($event.target.value)" />
+                    <button type="button" class="btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.75rem; height: auto;" (click)="fetchBranches()" [disabled]="!editGitUrl() || loadingBranches()">
+                      {{ loadingBranches() ? 'Loading...' : 'Fetch Branches' }}
+                    </button>
+                  </div>
                 </div>
                 <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
                   <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Branch</span>
-                  <input type="text" class="modern-input" [value]="editBranch()" (input)="editBranch.set($event.target.value)" />
+                  @if (availableBranches().length > 0) {
+                    <select class="modern-input" [value]="editBranch()" (change)="editBranch.set($any($event.target).value)">
+                      <option value="">Select a branch</option>
+                      @for (branch of availableBranches(); track branch) {
+                        <option [value]="branch">{{ branch }}</option>
+                      }
+                    </select>
+                  } @else {
+                    <input type="text" class="modern-input" [value]="editBranch()" (input)="editBranch.set($any($event.target).value)" placeholder="e.g. main" />
+                  }
                 </div>
               }
               <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
@@ -284,7 +303,10 @@
             @if (selectedDeployment()?.logs) {
               <button class="copy-logs-btn" (click)="copyLogs()">📋 {{ copyText() }}</button>
             }
-            @if (selectedDeployment() && selectedDeployment()?.status !== 'PENDING' && selectedDeployment()?.status !== 'BUILDING' && !triggerLoading()) {
+            @if (selectedDeployment() && (selectedDeployment()?.status === 'PENDING' || selectedDeployment()?.status === 'BUILDING' || selectedDeployment()?.status === 'RUNNING') && !triggerLoading()) {
+              <button class="rollback-btn-ui" style="background: rgba(220,38,38,0.1); color: #dc2626; border-color: rgba(220,38,38,0.2);" (click)="onTerminate(selectedDeployment()?._id!)">🛑 Terminate Deployment</button>
+            }
+            @if (selectedDeployment() && selectedDeployment()?.status !== 'PENDING' && selectedDeployment()?.status !== 'BUILDING' && selectedDeployment()?.status !== 'RUNNING' && !triggerLoading()) {
               <button class="rollback-btn-ui" (click)="onRollback(selectedDeployment()?._id!)">🔄 Revert to this version</button>
             }
           </div>

@@ -320,6 +320,8 @@
   position: relative;
   overflow: hidden;
   display: flex;
+  max-height: 600px;
+  min-height: 300px;
 }
 
 .terminal-logs {

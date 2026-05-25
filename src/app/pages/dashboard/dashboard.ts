@@ -57,6 +57,8 @@ export class DashboardComponent implements OnInit {
   protected deploySource = signal<'git' | 'image'>('git');
   protected newProjectName = signal('');
   protected newProjectGitUrl = signal('');
+  protected availableBranches = signal<string[]>([]);
+  protected loadingBranches = signal(false);
   protected newProjectBranch = signal('main');
   protected newProjectImage = signal('');
   protected newProjectPort = signal(3000);
@@ -244,6 +246,23 @@ export class DashboardComponent implements OnInit {
   toggleCreateForm() {
     this.showCreateForm.set(!this.showCreateForm());
     this.createError.set('');
+    this.availableBranches.set([]);
+  }
+
+  fetchBranches() {
+    const url = this.newProjectGitUrl();
+    if (!url) return;
+    this.loadingBranches.set(true);
+    this.projectService.getGitBranches(url).subscribe({
+      next: (branches) => {
+        this.availableBranches.set(branches);
+        this.loadingBranches.set(false);
+      },
+      error: () => {
+        this.availableBranches.set([]);
+        this.loadingBranches.set(false);
+      }
+    });
   }
 
   onCreateProject() {
