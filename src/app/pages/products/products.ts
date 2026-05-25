@@ -15,9 +15,9 @@ export class Products implements OnInit {
   constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    this.http.get<any[]>(`${environment.apiUrl}/products`).subscribe({
-      next: (data) => this.products = data,
-      error: (err) => console.error('Failed to load products', err)
-    });
+    // this.http.get<any[]>(`${environment.apiUrl}/products`).subscribe({
+    //   next: (data) => this.products = data,
+    //   error: (err) => console.error('Failed to load products', err)
+    // });
   }
 }

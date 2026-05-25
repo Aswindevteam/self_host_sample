@@ -15,9 +15,9 @@ export class Users implements OnInit {
   constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    this.http.get<any[]>(`${environment.apiUrl}/users`).subscribe({
-      next: (data) => this.users = data,
-      error: (err) => console.error('Failed to load users', err)
-    });
+    // this.http.get<any[]>(`${environment.apiUrl}/users`).subscribe({
+    //   next: (data) => this.users = data,
+    //   error: (err) => console.error('Failed to load users', err)
+    // });
   }
 }
