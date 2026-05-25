@@ -50,6 +50,10 @@ export class AdminComponent implements OnInit {
     return this.authService.currentUser()?.role === 'admin';
   }
 
+  // Tabs
+  protected activeTab = signal<'organizations' | 'users' | 'projects'>('organizations');
+  protected showCreateModal = signal(false);
+
   // Organizations List
   protected organizations = signal<Organization[]>([]);
   protected loadingOrgs = signal(false);
@@ -86,16 +90,24 @@ export class AdminComponent implements OnInit {
     this.loadProjects();
   }
 
+  setTab(tab: 'organizations' | 'users' | 'projects') {
+    this.activeTab.set(tab);
+  }
+
+  toggleCreateModal() {
+    this.showCreateModal.update(v => !v);
+    this.createError.set('');
+    this.createSuccess.set('');
+  }
+
   loadOrganizations() {
     this.loadingOrgs.set(true);
     this.http.get<Organization[]>(`${environment.apiUrl}/organizations`).subscribe({
       next: (data) => {
-        console.log('Organizations loaded:', data);
         this.organizations.set(data);
         this.loadingOrgs.set(false);
       },
       error: (err) => {
-        console.error('Failed to load organizations:', err);
         this.loadingOrgs.set(false);
       },
     });
@@ -105,12 +117,10 @@ export class AdminComponent implements OnInit {
     this.loadingUsers.set(true);
     this.http.get<User[]>(`${environment.apiUrl}/users`).subscribe({
       next: (data) => {
-        console.log('Users loaded:', data);
         this.users.set(data);
         this.loadingUsers.set(false);
       },
       error: (err) => {
-        console.error('Failed to load users:', err);
         this.loadingUsers.set(false);
       },
     });
@@ -120,12 +130,10 @@ export class AdminComponent implements OnInit {
     this.loadingProjects.set(true);
     this.projectService.getProjects().subscribe({
       next: (data) => {
-        console.log('Projects loaded:', data);
         this.projects.set(data);
         this.loadingProjects.set(false);
       },
       error: (err) => {
-        console.error('Failed to load projects:', err);
         this.loadingProjects.set(false);
       },
     });
@@ -148,9 +156,11 @@ export class AdminComponent implements OnInit {
     }).subscribe({
       next: (response) => {
         this.createLoading.set(false);
-        this.createSuccess.set(`Org admin created successfully! Email: ${response.user.email}, Organization: ${this.organizationName()}`);
+        this.createSuccess.set(`Org admin created successfully! Email: ${response.user.email}`);
         this.resetForm();
         this.loadOrganizations();
+        this.loadUsers();
+        setTimeout(() => this.toggleCreateModal(), 2000);
       },
       error: (err) => {
         this.createLoading.set(false);

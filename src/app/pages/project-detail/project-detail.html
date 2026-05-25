@@ -8,7 +8,7 @@
     </div>
     <div style="display: flex; gap: 0.75rem; align-items: center;">
       @if (!isAdmin) {
-        <span style="font-size: 0.78rem; padding: 0.25rem 0.6rem; border-radius: 999px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.35); color: #a5b4fc;">
+        <span style="font-size: 0.78rem; padding: 0.25rem 0.6rem; border-radius: 999px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); color: var(--accent-primary);">
           {{ project()?.dockerImage ? '🐳 Docker Access' : '⎇ Git Access' }}
         </span>
       }
@@ -65,7 +65,7 @@
     <main class="main-view">
       <!-- Upper Config Card: visible to users with edit permission -->
       @if (canEdit) {
-      <section class="config-banner glass-card">
+      <section class="settings-card glass-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <h3 style="margin: 0;">Configuration</h3>
           @if (canEdit && !editingConfig()) {
@@ -85,21 +85,21 @@
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
               @if (editType() === 'docker') {
                 <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                  <span class="label" style="font-size: 0.8rem; color: #9ca3af;">Docker Image</span>
-                  <input type="text" [value]="editDockerImage()" (input)="editDockerImage.set($event.target.value)" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.4rem; color: #fff; font-size: 0.9rem;" />
+                  <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Docker Image</span>
+                  <input type="text" class="modern-input" [value]="editDockerImage()" (input)="editDockerImage.set($event.target.value)" />
                 </div>
               } @else if (editType() === 'dist') {
                 <div class="config-item" style="display: flex; flex-direction: column; gap: 0.5rem; grid-column: 1 / -1;">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span class="label" style="font-size: 0.8rem; color: #9ca3af;">Dist Folder Path</span>
-                    <button type="button" class="btn-ghost" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #d1d5db; cursor: pointer;" (click)="cfgToggleDistInputMethod()">
+                    <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Dist Folder Path</span>
+                    <button type="button" class="btn-secondary" style="font-size: 0.75rem;" (click)="cfgToggleDistInputMethod()">
                       {{ cfgUseManualDistPath() ? 'Switch to Folder Upload' : 'Enter Server Path Manually' }}
                     </button>
                   </div>
                   @if (cfgUseManualDistPath()) {
                     <div style="display: flex; flex-direction: column; gap: 0.25rem; max-width: 400px;">
-                      <input type="text" [value]="editDistPath()" (input)="editDistPath.set($event.target.value)" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.4rem; color: #fff; font-size: 0.9rem;" placeholder="/home/user/dist" />
-                      <span style="font-size: 0.75rem; color: #6b7280; margin-top: 0.1rem;">Server absolute path (e.g. /home/user/dist)</span>
+                      <input type="text" class="modern-input" [value]="editDistPath()" (input)="editDistPath.set($event.target.value)" placeholder="/home/user/dist" />
+                      <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem;">Server absolute path (e.g. /home/user/dist)</span>
                     </div>
                   } @else {
                     <!-- Hidden folder picker -->
@@ -112,11 +112,10 @@
                       (change)="cfgOnFolderInputChange($event)"
                     />
                     <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                      <!-- Current path badge (if already set and not replaced) -->
                       @if (editDistPath() && !cfgDistUploaded()) {
-                        <div style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.75rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; max-width: 400px;">
-                          <span style="font-size:0.75rem; color:#6b7280;">Current:</span>
-                          <code style="font-size:0.78rem; color:#a5b4fc; word-break:break-all;">{{ editDistPath() }}</code>
+                        <div style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.75rem; background: rgba(0,0,0,0.04); border:1px solid var(--border-light); border-radius:6px; max-width: 400px;">
+                          <span style="font-size:0.75rem; color: var(--text-muted);">Current:</span>
+                          <code style="font-size:0.78rem; color: var(--accent-primary); word-break:break-all;">{{ editDistPath() }}</code>
                         </div>
                       }
                       <!-- Drop zone -->
@@ -132,20 +131,21 @@
                       >
                         @if (cfgDistUploading()) {
                           <div class="cfg-dz-spinner"></div>
-                          <span style="font-size:0.85rem; color:#a5b4fc;">Uploading {{ cfgDistFileCount() }} files…</span>
+                          <span style="font-size:0.85rem; color: var(--accent-primary);">Uploading {{ cfgDistFileCount() }} files…</span>
                         } @else if (cfgDistUploaded()) {
                           <span style="font-size:1.1rem;">✓</span>
-                          <span style="font-size:0.85rem; color:#34d399; font-weight:600;">{{ cfgDistFolderName() }}</span>
-                          <span style="font-size:0.75rem; color:#6b7280;">{{ cfgDistFileCount() }} files</span>
+                          <span style="font-size:0.85rem; color:#10b981; font-weight:600;">{{ cfgDistFolderName() }}</span>
+                          <span style="font-size:0.75rem; color: var(--text-muted);">{{ cfgDistFileCount() }} files</span>
                           <button
                             type="button"
-                            style="background:transparent;border:1px solid rgba(255,255,255,0.1);color:#9ca3af;font-size:0.72rem;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;margin-top:0.25rem;"
+                            class="btn-secondary"
+                            style="font-size:0.75rem; margin-top:0.25rem;"
                             (click)="$event.stopPropagation(); cfgResetDistUpload()"
                           >↺ Change</button>
                         } @else {
                           <span style="font-size:1.4rem;">📂</span>
-                          <span style="font-size:0.85rem; color:#d1d5db; font-weight:500;">{{ editDistPath() ? 'Upload new dist folder' : 'Drag & drop or click to choose folder' }}</span>
-                          <span style="font-size:0.75rem; color:#6b7280;">Replace current dist with a new upload</span>
+                          <span style="font-size:0.85rem; color: var(--text-main); font-weight:500;">{{ editDistPath() ? 'Upload new dist folder' : 'Drag & drop or click to choose folder' }}</span>
+                          <span style="font-size:0.75rem; color: var(--text-muted);">Replace current dist with a new upload</span>
                         }
                       </div>
                     </div>
@@ -153,30 +153,30 @@
                 </div>
               } @else {
                 <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                  <span class="label" style="font-size: 0.8rem; color: #9ca3af;">Repository Git URL</span>
-                  <input type="text" [value]="editGitUrl()" (input)="editGitUrl.set($event.target.value)" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.4rem; color: #fff; font-size: 0.9rem;" />
+                  <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Repository Git URL</span>
+                  <input type="text" class="modern-input" [value]="editGitUrl()" (input)="editGitUrl.set($event.target.value)" />
                 </div>
                 <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                  <span class="label" style="font-size: 0.8rem; color: #9ca3af;">Branch</span>
-                  <input type="text" [value]="editBranch()" (input)="editBranch.set($event.target.value)" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.4rem; color: #fff; font-size: 0.9rem;" />
+                  <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Branch</span>
+                  <input type="text" class="modern-input" [value]="editBranch()" (input)="editBranch.set($event.target.value)" />
                 </div>
               }
               <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                <span class="label" style="font-size: 0.8rem; color: #9ca3af;">Internal Port</span>
-                <input type="number" [value]="editPort()" (input)="editPort.set(+$event.target.value)" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.4rem; color: #fff; font-size: 0.9rem;" />
+                <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Internal Port</span>
+                <input type="number" class="modern-input" [value]="editPort()" (input)="editPort.set(+$event.target.value)" />
               </div>
               <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                <span class="label" style="font-size: 0.8rem; color: #9ca3af;">Domain URL (Optional)</span>
-                <input type="text" [value]="editDomain()" (input)="editDomain.set($event.target.value)" placeholder="e.g. app.mycompany.local" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.4rem; color: #fff; font-size: 0.9rem;" />
+                <span class="label" style="font-size: 0.8rem; color: var(--text-muted);">Domain URL (Optional)</span>
+                <input type="text" class="modern-input" [value]="editDomain()" (input)="editDomain.set($event.target.value)" placeholder="e.g. app.mycompany.local" />
               </div>
 
               <div class="config-item" style="display: flex; flex-direction: column; gap: 0.25rem; grid-column: 1 / -1; margin-top: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.02); border: 1px solid var(--border-light); padding: 1rem; border-radius: 6px;">
                   <div>
-                    <span class="label" style="font-size: 0.9rem; color: #e2e8f0; font-weight: 600; display: block; margin-bottom: 0.25rem;">Nginx Configuration</span>
-                    <span style="font-size: 0.8rem; color: #94a3b8;">Manage reverse proxy routing, headers, and SSL for this project.</span>
+                    <span class="label" style="font-size: 0.9rem; color: var(--text-main); font-weight: 600; display: block; margin-bottom: 0.25rem; text-transform: none;">Nginx Configuration</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Manage reverse proxy routing, headers, and SSL for this project.</span>
                   </div>
-                  <button type="button" class="btn-ghost" style="background: rgba(79, 70, 229, 0.2); border: 1px solid rgba(79, 70, 229, 0.4); color: #a5b4fc; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 500; cursor: pointer;" (click)="openNginxDrawer()">
+                  <button type="button" class="btn-secondary" style="color: var(--accent-primary);" (click)="openNginxDrawer()">
                     Configure Nginx
                   </button>
                 </div>
@@ -184,8 +184,8 @@
             </div> <!-- Closes config-grid -->
 
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;">
-              <button class="cancel-btn" (click)="cancelEditConfig()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 0.35rem 1rem; border-radius: 4px; cursor: pointer;">Cancel</button>
-              <button class="save-btn" (click)="saveConfig()" [disabled]="savingConfig()" style="background: #4f46e5; border: none; color: #fff; padding: 0.35rem 1rem; border-radius: 4px; cursor: pointer;">
+              <button class="btn-secondary" (click)="cancelEditConfig()">Cancel</button>
+              <button class="btn-primary" (click)="saveConfig()" [disabled]="savingConfig()">
                 {{ savingConfig() ? 'Saving...' : 'Save Changes' }}
               </button>
             </div>
@@ -231,7 +231,7 @@
       </section>
       } @else {
         <!-- Non-admin: read-only access summary card -->
-        <section class="config-banner glass-card">
+        <section class="settings-card glass-card">
           <h3 style="margin: 0 0 1rem;">Project Access</h3>
           <div class="config-grid">
             <div class="config-item">
@@ -370,64 +370,64 @@
     <div class="drawer-panel" (click)="$event.stopPropagation()">
       <div class="drawer-header">
         <h3>Custom Nginx Configuration</h3>
-        <button class="btn-ghost" style="background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 1.25rem;" (click)="closeNginxDrawer()">&times;</button>
+        <button class="btn-ghost" style="border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 1.25rem;" (click)="closeNginxDrawer()">&times;</button>
       </div>
       
-      <div class="drawer-content" style="gap: 1.5rem;">
-        <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 1rem;">
-          <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: #e2e8f0;">Quick Configuration Generator</h4>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #d1d5db; cursor: pointer;">
+      <div class="drawer-content">
+        <div style="background: white; border: 1px solid var(--border-light); border-radius: 8px; padding: 1.25rem; box-shadow: var(--shadow-sm);">
+          <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; color: var(--text-main); font-weight: 600;">Quick Configuration Generator</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer;">
               <input type="checkbox" [checked]="nginxFormHttps()" (change)="nginxFormHttps.set($any($event.target).checked)" />
               Prepare HTTPS/SSL Config
             </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #d1d5db; cursor: pointer;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer;">
               <input type="checkbox" [checked]="nginxFormGzip()" (change)="nginxFormGzip.set($any($event.target).checked)" />
               Enable Gzip Compression
             </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #d1d5db; cursor: pointer;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer;">
               <input type="checkbox" [checked]="nginxFormSecurity()" (change)="nginxFormSecurity.set($any($event.target).checked)" />
               Add Security Headers
             </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #d1d5db; cursor: pointer;">
-              <span>Max Upload Size:</span>
-              <select [value]="nginxFormMaxBody()" (change)="nginxFormMaxBody.set($any($event.target).value)" style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;">
-                <option value="1M" style="background: #1e293b; color: #fff;">1MB (Default)</option>
-                <option value="10M" style="background: #1e293b; color: #fff;">10MB</option>
-                <option value="50M" style="background: #1e293b; color: #fff;">50MB</option>
-                <option value="100M" style="background: #1e293b; color: #fff;">100MB</option>
-                <option value="500M" style="background: #1e293b; color: #fff;">500MB</option>
-                <option value="0" style="background: #1e293b; color: #fff;">Unlimited</option>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer;">
+              <span style="white-space: nowrap;">Max Upload Size:</span>
+              <select class="modern-input" [value]="nginxFormMaxBody()" (change)="nginxFormMaxBody.set($any($event.target).value)" style="padding: 0.2rem 0.5rem; height: auto;">
+                <option value="1M">1MB (Default)</option>
+                <option value="10M">10MB</option>
+                <option value="50M">50MB</option>
+                <option value="100M">100MB</option>
+                <option value="500M">500MB</option>
+                <option value="0">Unlimited</option>
               </select>
             </label>
           </div>
-          <button type="button" (click)="generateNginxTemplate()" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; padding: 0.4rem 1rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; width: 100%;">
+          <button type="button" class="btn-primary" (click)="generateNginxTemplate()" style="width: 100%; justify-content: center; font-size: 0.9rem;">
             Generate Configuration
           </button>
         </div>
 
-        <div style="display: flex; flex-direction: column; flex: 1;">
+        <div style="display: flex; flex-direction: column; flex: 1; margin-top: 0.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span style="font-size: 0.85rem; color: #cbd5e1; font-weight: 600;">Configuration File (nginx.conf)</span>
-            <button type="button" class="btn-ghost" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #d1d5db; cursor: pointer;" (click)="toggleNginxHistory()">
+            <span style="font-size: 0.9rem; color: var(--text-main); font-weight: 600;">Configuration File (nginx.conf)</span>
+            <button type="button" class="btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;" (click)="toggleNginxHistory()">
               {{ showingNginxHistory() ? 'Hide History' : 'View History & Revert' }}
             </button>
           </div>
 
           @if (showingNginxHistory()) {
-            <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 1rem; max-height: 250px; overflow-y: auto; margin-bottom: 1rem;">
-              <h4 style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: #cbd5e1;">Configuration History</h4>
+            <div style="background: white; border: 1px solid var(--border-light); border-radius: 8px; padding: 1rem; max-height: 250px; overflow-y: auto; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
+              <h4 style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: var(--text-main); font-weight: 600;">Configuration History</h4>
               @if (nginxHistory().length === 0) {
-                <p style="font-size: 0.8rem; color: #6b7280; margin: 0;">No history found.</p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">No history found.</p>
               } @else {
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                   @for (version of nginxHistory(); track version._id) {
-                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-light);">
                       <div>
-                        <div style="font-size: 0.8rem; color: #e2e8f0;">{{ version.createdAt | date:'medium' }}</div>
-                        <div style="font-size: 0.7rem; color: #94a3b8;">by {{ version.updatedBy?.email || 'Unknown User' }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-main); font-weight: 500;">{{ version.createdAt | date:'medium' }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">by {{ version.updatedBy?.email || 'Unknown User' }}</div>
                       </div>
-                      <button type="button" (click)="revertNginxConfig(version)" style="background: #3b82f6; border: none; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">
+                      <button type="button" class="btn-secondary" (click)="revertNginxConfig(version)" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; color: var(--accent-primary);">
                         Revert to this
                       </button>
                     </div>
@@ -437,13 +437,13 @@
             </div>
           }
 
-          <textarea [value]="editCustomNginxConfig()" (input)="editCustomNginxConfig.set($any($event.target).value)" placeholder="# Leave blank to auto-generate default Nginx config" style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 0.75rem; color: #a5b4fc; font-family: monospace; font-size: 0.85rem; width: 100%; box-sizing: border-box; resize: vertical; min-height: 350px; flex: 1;"></textarea>
+          <textarea class="modern-input" [value]="editCustomNginxConfig()" (input)="editCustomNginxConfig.set($any($event.target).value)" placeholder="# Leave blank to auto-generate default Nginx config" style="font-family: 'Fira Code', monospace; font-size: 0.85rem; resize: vertical; min-height: 350px; flex: 1; padding: 1rem;"></textarea>
         </div>
       </div>
 
       <div class="drawer-footer">
-        <button class="cancel-btn" (click)="closeNginxDrawer()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 0.4rem 1.25rem; border-radius: 4px; cursor: pointer;">Cancel</button>
-        <button class="save-btn" (click)="saveConfig(); closeNginxDrawer()" style="background: #4f46e5; border: none; color: #fff; padding: 0.4rem 1.25rem; border-radius: 4px; cursor: pointer;">Save Configuration</button>
+        <button class="btn-secondary" (click)="closeNginxDrawer()">Cancel</button>
+        <button class="btn-primary" (click)="saveConfig(); closeNginxDrawer()">Save Configuration</button>
       </div>
     </div>
   </div>

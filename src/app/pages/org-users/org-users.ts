@@ -44,6 +44,11 @@ export class OrgUsersComponent implements OnInit {
     return this.authService.currentUser()?.role === 'org-admin';
   }
 
+  // Tabs
+  protected activeTab = signal<'users' | 'assignments'>('users');
+  protected showCreateModal = signal(false);
+  protected showAssignModal = signal(false);
+
   // Users List
   protected users = signal<OrgUser[]>([]);
   protected loadingUsers = signal(false);
@@ -111,13 +116,28 @@ export class OrgUsersComponent implements OnInit {
     this.loadProjects();
   }
 
+  setTab(tab: 'users' | 'assignments') {
+    this.activeTab.set(tab);
+  }
+
+  toggleCreateModal() {
+    this.showCreateModal.update(v => !v);
+    this.createError.set('');
+    this.createSuccess.set('');
+  }
+
+  toggleAssignModal() {
+    this.showAssignModal.update(v => !v);
+    this.assignError.set('');
+    this.assignSuccess.set('');
+  }
+
   loadUsers() {
     this.loadingUsers.set(true);
     this.http.get<OrgUser[]>(`${environment.apiUrl}/users`).subscribe({
       next: (data) => {
         this.users.set(data);
         this.loadingUsers.set(false);
-        // Load project assignments for each user
         data.forEach(user => this.loadUserProjectAssignments(user._id));
       },
       error: () => {
@@ -160,12 +180,10 @@ export class OrgUsersComponent implements OnInit {
   }
 
   viewUser(user: OrgUser) {
-    // Navigate to user details or show user info
     console.log('View user:', user);
   }
 
   deployUser(user: OrgUser) {
-    // Navigate to deploy page for this user
     console.log('Deploy user:', user);
   }
 
@@ -207,6 +225,7 @@ export class OrgUsersComponent implements OnInit {
         this.createSuccess.set(`User ${this.email()} created successfully!`);
         this.resetCreateForm();
         this.loadUsers();
+        setTimeout(() => this.toggleCreateModal(), 2000);
       },
       error: (err) => {
         this.createLoading.set(false);
@@ -236,6 +255,8 @@ export class OrgUsersComponent implements OnInit {
         this.assignLoading.set(false);
         this.assignSuccess.set('Project assigned successfully!');
         this.resetAssignForm();
+        this.loadUserProjectAssignments(this.assignUserId());
+        setTimeout(() => this.toggleAssignModal(), 2000);
       },
       error: (err) => {
         this.assignLoading.set(false);

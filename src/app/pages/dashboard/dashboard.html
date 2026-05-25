@@ -10,11 +10,11 @@
         <form (submit)="onCreateOrganization(); $event.preventDefault()" class="animate-slide-up">
           <div class="form-group">
             <label for="orgName">Organization Name</label>
-            <input type="text" id="orgName" name="orgName" [(ngModel)]="orgName" placeholder="e.g. My Dev Team" required />
+            <input type="text" class="modern-input" id="orgName" name="orgName" [(ngModel)]="orgName" placeholder="e.g. My Dev Team" required />
           </div>
           <div class="form-group">
             <label for="orgDesc">Description (Optional)</label>
-            <textarea id="orgDesc" name="orgDesc" [(ngModel)]="orgDesc" placeholder="Brief description..." rows="3"></textarea>
+            <textarea class="modern-input" id="orgDesc" name="orgDesc" [(ngModel)]="orgDesc" placeholder="Brief description..." rows="3"></textarea>
           </div>
           @if (orgError()) {
             <div class="error-banner">{{ orgError() }}</div>
@@ -33,14 +33,14 @@
       </div>
       <div style="display: flex; gap: 0.75rem; align-items: center;">
         @if (isAdmin) {
-          <a routerLink="/admin" class="action-btn">Admin Panel</a>
+          <a routerLink="/admin" class="btn-secondary" style="text-decoration:none">Admin Panel</a>
         }
         @if (isOrgAdmin) {
-          <a routerLink="/org-users" class="action-btn">Manage Users</a>
+          <a routerLink="/org-users" class="btn-secondary" style="text-decoration:none">Manage Users</a>
         }
         @if (isAdmin || isOrgAdmin || projects().length > 0) {
           @if (authService.currentUser()?.role !== 'user') {
-            <a routerLink="/deploy" class="action-btn primary">+ Deploy New</a>
+            <a routerLink="/deploy" class="btn-primary" style="text-decoration:none">+ Deploy New</a>
           }
         }
       </div>
@@ -84,6 +84,7 @@
                 <label for="name">App Name</label>
                 <input
                   type="text"
+                  class="modern-input"
                   id="name"
                   name="name"
                   [(ngModel)]="newProjectName"
@@ -95,6 +96,7 @@
                 <label for="port">Internal Container Port</label>
                 <input
                   type="number"
+                  class="modern-input"
                   id="port"
                   name="port"
                   [(ngModel)]="newProjectPort"
@@ -107,6 +109,7 @@
               <label for="domain">Domain Name / Subdomain (Optional)</label>
               <input
                 type="text"
+                class="modern-input"
                 id="domain"
                 name="domain"
                 [(ngModel)]="newProjectDomain"
@@ -120,6 +123,7 @@
                 <label for="gitUrl">Git Repository URL (HTTPS)</label>
                 <input
                   type="text"
+                  class="modern-input"
                   id="gitUrl"
                   name="gitUrl"
                   [(ngModel)]="newProjectGitUrl"
@@ -132,6 +136,7 @@
                 <label for="branch">Target Branch</label>
                 <input
                   type="text"
+                  class="modern-input"
                   id="branch"
                   name="branch"
                   [(ngModel)]="newProjectBranch"
@@ -147,6 +152,7 @@
                 <label for="dockerImage">Docker Image Tag</label>
                 <input
                   type="text"
+                  class="modern-input"
                   id="dockerImage"
                   name="dockerImage"
                   [(ngModel)]="newProjectImage"
@@ -161,8 +167,8 @@
             }
 
             <div class="form-actions">
-              <button type="button" class="cancel-btn" (click)="toggleCreateForm()">Cancel</button>
-              <button type="submit" class="submit-btn" [disabled]="createLoading()">
+              <button type="button" class="btn-secondary" (click)="toggleCreateForm()">Cancel</button>
+              <button type="submit" class="btn-primary" [disabled]="createLoading()">
                 @if (createLoading()) {
                   Creating...
                 } @else {
@@ -187,7 +193,7 @@
             @if (isAdmin || authService.currentUser()?.role === 'org-admin') {
               <h3>No applications yet</h3>
               <p>Get started by deploying a Git repository or a pre-built Docker image.</p>
-              <a routerLink="/deploy" class="action-btn">Deploy Now</a>
+              <a routerLink="/deploy" class="btn-primary" style="text-decoration:none;margin-top:1rem;">Deploy Now</a>
             } @else {
               <h3>No Assigned Projects</h3>
               <p>You do not have any projects assigned. Please contact your organization administrator to get access.</p>
@@ -299,9 +305,12 @@
 
     <!-- TAB 2: Docker Engine -->
     @if (activeTab() === 'docker') {
-      <div class="docker-header-actions">
-        <button class="refresh-btn" (click)="loadContainers()" [disabled]="loadingDocker()">
-          🔄 Refresh Containers List
+      <div class="docker-header-actions" style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+        <button class="btn-secondary" (click)="loadContainers()" [disabled]="loadingDocker()" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" width="16" height="16">
+            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.48"/>
+          </svg>
+          Refresh Containers List
         </button>
       </div>
 
@@ -386,7 +395,19 @@
       <div class="metrics-container" style="margin-top: 1.5rem;">
         <div class="glass-card" style="padding: 1.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 style="margin: 0; font-size: 1.25rem; color: #fff;">API Usage Matrix Graph</h2>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-main);">API Usage Matrix Graph</h2>
+              @if (isAdmin) {
+                <div style="position: relative;">
+                  <input type="text" list="org-metrics-options" class="modern-input" [value]="metricsSearchText()" (input)="onMetricsOrgSearch($event)" placeholder="Filter by Organization..." style="padding: 0.35rem 0.75rem; width: 250px;">
+                  <datalist id="org-metrics-options">
+                    @for (org of metricsOrganizations(); track org._id) {
+                      <option [value]="org.name"></option>
+                    }
+                  </datalist>
+                </div>
+              }
+            </div>
             <button class="refresh-btn" (click)="loadMetrics()" [disabled]="loadingMetrics()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer;">
               🔄 Refresh Data
             </button>
@@ -406,11 +427,14 @@
               </div>
             } @else {
               <div class="matrix-graph" style="display: flex; flex-direction: column; gap: 1rem;">
-                @for (item of metricsData(); track item._id.endpoint + item._id.method) {
+                @for (item of metricsData(); track item.endpoint + item.method) {
                   <div class="matrix-row" style="display: flex; align-items: center; gap: 1rem;">
                     <div style="width: 250px; flex-shrink: 0; display: flex; flex-direction: column;">
-                      <span style="font-family: monospace; color: #a5b4fc; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="item._id.endpoint">{{ item._id.endpoint }}</span>
-                      <span style="font-size: 0.75rem; font-weight: bold; color: #10b981;">{{ item._id.method }}</span>
+                      <span style="font-family: monospace; color: #a5b4fc; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="item.endpoint">{{ item.endpoint }}</span>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.2rem;">
+                        <span style="font-size: 0.75rem; font-weight: bold; color: #10b981;">{{ item.method }}</span>
+                        <span style="font-size: 0.65rem; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 0.1rem 0.3rem; border-radius: 3px;">App Traffic</span>
+                      </div>
                     </div>
                     <div style="flex-grow: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 24px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
                       <div class="bar" [style.width]="(item.count / metricsData()[0].count * 100) + '%'" style="background: linear-gradient(90deg, #4f46e5, #8b5cf6); height: 100%; transition: width 0.5s ease-out;"></div>

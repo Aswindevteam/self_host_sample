@@ -4,401 +4,381 @@
       <h1>Organization Users</h1>
       <p class="subtitle">Manage users and project assignments in your organization</p>
     </div>
-    <a routerLink="/dashboard" class="action-btn secondary">← Back to Dashboard</a>
+    <div style="display: flex; gap: 1rem;">
+      @if (activeTab() === 'users') {
+        <button class="btn-primary" (click)="toggleCreateModal()">+ Create User</button>
+      }
+      @if (activeTab() === 'assignments') {
+        <button class="btn-primary" (click)="toggleAssignModal()">+ Assign Project</button>
+      }
+      <a routerLink="/dashboard" class="btn-secondary">← Back to Dashboard</a>
+    </div>
+  </div>
+
+  <div class="admin-tabs">
+    <button class="tab-btn" [class.active]="activeTab() === 'users'" (click)="setTab('users')">Users</button>
+    <button class="tab-btn" [class.active]="activeTab() === 'assignments'" (click)="setTab('assignments')">Assignments</button>
   </div>
 
   <div class="org-users-content">
-    <!-- Create User Section -->
-    <div class="glass-card">
-      <div class="card-header">
-        <h2>Create New User</h2>
-        <p class="card-subtitle">Add a new user to your organization</p>
-      </div>
-
-      <form (submit)="onCreateUser(); $event.preventDefault()">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            [(ngModel)]="email"
-            placeholder="user@example.com"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            [(ngModel)]="password"
-            placeholder="••••••••"
-            required
-            minlength="6"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="role">Role</label>
-          <select id="role" name="role" [(ngModel)]="role">
-            <option value="user">User</option>
-            <option value="org-admin">Org Admin</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Permissions</label>
-          <div class="checkbox-group">
-            <label class="checkbox-label">
-              <input type="checkbox" name="canView" [(ngModel)]="canView" />
-              <span>Can View</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" name="canEdit" [(ngModel)]="canEdit" />
-              <span>Can Edit</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" name="canDeploy" [(ngModel)]="canDeploy" />
-              <span>Can Deploy</span>
-            </label>
+    <!-- Users List Section -->
+    @if (activeTab() === 'users') {
+      <div class="glass-card">
+        <div class="card-header">
+          <div>
+            <h2>Users in Organization</h2>
+            <p class="card-subtitle">All users in your organization</p>
           </div>
-        </div>
-
-        @if (createError()) {
-          <div class="error-banner">{{ createError() }}</div>
-        }
-
-        @if (createSuccess()) {
-          <div class="success-banner">{{ createSuccess() }}</div>
-        }
-
-        <div class="form-actions">
-          <button type="submit" class="submit-btn" [disabled]="createLoading()">
-            @if (createLoading()) {
-              <span class="spinner"></span> Creating...
-            } @else {
-              Create User
-            }
+          <button class="refresh-btn" (click)="loadUsers()" [disabled]="loadingUsers()">
+            🔄 Refresh
           </button>
         </div>
-      </form>
-    </div>
 
-    <!-- Users List Section -->
-    <div class="glass-card">
-      <div class="card-header">
-        <div>
-          <h2>Users in Organization</h2>
-          <p class="card-subtitle">All users in your organization</p>
-        </div>
-        <button class="refresh-btn" (click)="loadUsers()" [disabled]="loadingUsers()">
-          🔄 Refresh
-        </button>
-      </div>
-
-      @if (loadingUsers()) {
-        <div class="loading-state">
-          <div class="spinner"></div>
-          <p>Loading users...</p>
-        </div>
-      } @else {
-        @if (users().length === 0) {
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-              <path d="M16 3.13a4 4 0 010 7.75"/>
-            </svg>
-            <p>No users in your organization yet.</p>
-            <p class="empty-subtitle">Create a user to get started</p>
+        @if (loadingUsers()) {
+          <div class="loading-state">
+            <span class="spinner"></span>
+            <p>Loading users...</p>
           </div>
         } @else {
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>User Name</th>
-                <th>Role</th>
-                <th>Assigned Projects</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (user of users(); track user._id) {
+          @if (users().length === 0) {
+            <div class="empty-state">
+              <p>No users in your organization yet.</p>
+              <p class="empty-subtitle">Create a user to get started</p>
+            </div>
+          } @else {
+            <table class="data-table">
+              <thead>
                 <tr>
-                  <td>
-                    <div class="user-cell">
-                      <span class="user-email">{{ user.email }}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="role-badge {{ user.role }}">{{ user.role }}</span>
-                  </td>
-                  <td>
-                    @if (userProjectAssignments().get(user._id) && userProjectAssignments().get(user._id)!.length > 0) {
-                      <div class="projects-cell">
-                        @for (assignment of getVisibleProjects(user._id); track assignment._id) {
-                          <span class="project-chip">{{ assignment.projectName }}</span>
-                        }
-                        @if (getHiddenProjectsCount(user._id) > 0) {
-                          <span class="project-chip more">+{{ getHiddenProjectsCount(user._id) }} more</span>
-                        }
-                      </div>
-                    } @else {
-                      <span class="text-muted">No projects</span>
-                    }
-                  </td>
-                  <td>
-                    <div class="actions-cell">
-                      <button class="icon-btn" title="View" (click)="viewUser(user)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                      </button>
-                      <button class="icon-btn" title="Edit" (click)="openEditModal(user)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                      </button>
-                      <button class="icon-btn" title="Deploy" (click)="deployUser(user)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                          <path d="M2 17l10 5 10-5"/>
-                          <path d="M2 12l10 5 10-5"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
+                  <th>User Name</th>
+                  <th>Role</th>
+                  <th>Assigned Projects</th>
+                  <th>Actions</th>
                 </tr>
-              }
-            </tbody>
-          </table>
-        }
-      }
-    </div>
-
-    <!-- Edit User Modal -->
-    @if (editingUserId()) {
-      <div class="modal-overlay" (click)="closeEditModal()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>Edit User</h2>
-            <button class="modal-close" (click)="closeEditModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Role</label>
-              <select name="editUserRole" [(ngModel)]="editUserRole">
-                <option value="user">User</option>
-                <option value="org-admin">Org Admin</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Permissions</label>
-              <div class="checkbox-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" name="editUserCanView" [(ngModel)]="editUserCanView" />
-                  <span>Can View</span>
-                </label>
-                <label class="checkbox-label">
-                  <input type="checkbox" name="editUserCanEdit" [(ngModel)]="editUserCanEdit" />
-                  <span>Can Edit</span>
-                </label>
-                <label class="checkbox-label">
-                  <input type="checkbox" name="editUserCanDeploy" [(ngModel)]="editUserCanDeploy" />
-                  <span>Can Deploy</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>Assigned Projects</label>
-              @if (userProjectAssignments().get(editingUserId()!) && userProjectAssignments().get(editingUserId()!)!.length > 0) {
-                <div class="modal-projects-list">
-                  @for (assignment of userProjectAssignments().get(editingUserId()!); track assignment._id) {
-                    @if (editingAssignmentId() === assignment._id) {
-                      <div class="modal-assignment-edit">
-                        <div class="checkbox-group">
-                          <label class="checkbox-label">
-                            <input type="checkbox" name="editAssignmentCanView" [(ngModel)]="editAssignmentCanView" />
-                            <span>View</span>
-                          </label>
-                          <label class="checkbox-label">
-                            <input type="checkbox" name="editAssignmentCanEdit" [(ngModel)]="editAssignmentCanEdit" />
-                            <span>Edit</span>
-                          </label>
-                          <label class="checkbox-label">
-                            <input type="checkbox" name="editAssignmentCanDeploy" [(ngModel)]="editAssignmentCanDeploy" />
-                            <span>Deploy</span>
-                          </label>
-                        </div>
-                        <div class="modal-assignment-actions">
-                          <button class="action-btn-sm success" (click)="onSaveAssignment(assignment._id, editingUserId()!)" [disabled]="editAssignmentLoading()">Save</button>
-                          <button class="action-btn-sm secondary" (click)="cancelEditAssignment()">Cancel</button>
-                        </div>
-                      </div>
-                    } @else {
-                      <div class="modal-assignment-item">
-                        <span class="project-name">{{ assignment.projectName }}</span>
-                        <div class="modal-assignment-actions">
-                          <button class="action-btn-sm" (click)="startEditAssignment(assignment)">Edit</button>
-                          <button class="action-btn-sm danger" (click)="removeAssignment(assignment._id, editingUserId()!)">Remove</button>
-                        </div>
-                      </div>
-                    }
-                  }
-                </div>
-              } @else {
-                <p class="text-muted">No projects assigned</p>
-              }
-            </div>
-
-            <div class="form-group">
-              <label>Add Project</label>
-              <div class="project-selector">
-                <input
-                  type="text"
-                  name="projectSearch"
-                  [(ngModel)]="projectSearchQuery"
-                  placeholder="Search projects..."
-                  (input)="filterProjects()"
-                />
-                @if (projectSearchQuery() || showProjectDropdown()) {
-                  <div class="project-dropdown">
-                    @if (filteredProjects().length > 0) {
-                      @for (project of filteredProjects(); track project._id) {
-                        <div class="project-option" (click)="selectProjectToAdd(project)">
-                          <span class="project-option-name">{{ project.name }}</span>
-                          @if (isProjectAssigned(project._id)) {
-                            <span class="project-option-status assigned">Assigned</span>
+              </thead>
+              <tbody>
+                @for (user of users(); track user._id) {
+                  <tr>
+                    <td>
+                      <span class="user-email">{{ user.email }}</span>
+                    </td>
+                    <td>
+                      <span class="role-badge {{ user.role }}">{{ user.role }}</span>
+                    </td>
+                    <td>
+                      @if (userProjectAssignments().get(user._id) && userProjectAssignments().get(user._id)!.length > 0) {
+                        <div class="projects-cell">
+                          @for (assignment of getVisibleProjects(user._id); track assignment._id) {
+                            <span class="project-chip">{{ assignment.projectName }}</span>
+                          }
+                          @if (getHiddenProjectsCount(user._id) > 0) {
+                            <span class="project-chip more">+{{ getHiddenProjectsCount(user._id) }} more</span>
                           }
                         </div>
+                      } @else {
+                        <span class="text-muted">No projects</span>
                       }
-                    } @else {
-                      <div class="project-option no-results">No projects found</div>
-                    }
-                  </div>
-                }
-              </div>
-              @if (selectedProjectsToAdd().length > 0) {
-                <div class="selected-projects">
-                  <div class="selected-projects-label">Selected Projects:</div>
-                  <div class="selected-projects-list">
-                    @for (project of selectedProjectsToAdd(); track project._id) {
-                      <div class="selected-project-chip">
-                        {{ project.name }}
-                        <button class="chip-remove" (click)="removeProjectFromSelection(project._id)">&times;</button>
+                    </td>
+                    <td>
+                      <div class="actions-cell">
+                        <button class="action-btn-sm" (click)="openEditModal(user)">Edit User & Assignments</button>
                       </div>
-                    }
-                  </div>
-                  <div class="selected-projects-permissions">
-                    <label class="checkbox-label">
-                      <input type="checkbox" name="modalAddCanView" [(ngModel)]="modalAddCanView" />
-                      <span>Can View</span>
-                    </label>
-                    <label class="checkbox-label">
-                      <input type="checkbox" name="modalAddCanEdit" [(ngModel)]="modalAddCanEdit" />
-                      <span>Can Edit</span>
-                    </label>
-                    <label class="checkbox-label">
-                      <input type="checkbox" name="modalAddCanDeploy" [(ngModel)]="modalAddCanDeploy" />
-                      <span>Can Deploy</span>
-                    </label>
-                  </div>
-                  <button class="action-btn-sm" (click)="addSelectedProjects()">Add Selected Projects</button>
-                </div>
-              }
-            </div>
-          </div>
-          <div class="modal-footer">
-            @if (editError()) {
-              <div class="error-banner">{{ editError() }}</div>
-            }
-            @if (editSuccess()) {
-              <div class="success-banner">{{ editSuccess() }}</div>
-            }
-            <button class="action-btn-sm success" (click)="onSaveUser()" [disabled]="editLoading()">
-              @if (editLoading()) {
-                <span class="spinner"></span> Saving...
-              } @else {
-                Save
-              }
-            </button>
-            <button class="action-btn-sm secondary" (click)="closeEditModal()">Cancel</button>
-          </div>
-        </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
       </div>
     }
 
-    <!-- Assign Project Section -->
-    <div class="glass-card">
-      <div class="card-header">
-        <h2>Assign Project to User</h2>
-        <p class="card-subtitle">Grant a user access to a specific project</p>
-      </div>
-
-      <form (submit)="onAssignProject(); $event.preventDefault()">
-        <div class="form-group">
-          <label for="assignUserId">User</label>
-          <select id="assignUserId" name="assignUserId" [(ngModel)]="assignUserId">
-            <option value="">Select a user</option>
-            @for (user of users(); track user._id) {
-              <option [value]="user._id">{{ user.email }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="assignProjectId">Project</label>
-          <select id="assignProjectId" name="assignProjectId" [(ngModel)]="assignProjectId">
-            <option value="">Select a project</option>
-            @for (project of projects(); track project._id) {
-              <option [value]="project._id">{{ project.name }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Permissions</label>
-          <div class="checkbox-group">
-            <label class="checkbox-label">
-              <input type="checkbox" name="assignCanView" [(ngModel)]="assignCanView" />
-              <span>Can View</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" name="assignCanEdit" [(ngModel)]="assignCanEdit" />
-              <span>Can Edit</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" name="assignCanDeploy" [(ngModel)]="assignCanDeploy" />
-              <span>Can Deploy</span>
-            </label>
+    <!-- Assignments Tab Content (Alternative overview) -->
+    @if (activeTab() === 'assignments') {
+      <div class="glass-card">
+        <div class="card-header">
+          <div>
+            <h2>Project Assignments</h2>
+            <p class="card-subtitle">View and manage project assignments</p>
           </div>
         </div>
-
-        @if (assignError()) {
-          <div class="error-banner">{{ assignError() }}</div>
-        }
-
-        @if (assignSuccess()) {
-          <div class="success-banner">{{ assignSuccess() }}</div>
-        }
-
-        <div class="form-actions">
-          <button type="submit" class="submit-btn" [disabled]="assignLoading()">
-            @if (assignLoading()) {
-              <span class="spinner"></span> Assigning...
-            } @else {
-              Assign Project
-            }
-          </button>
+        <div class="empty-state" style="padding: 2rem;">
+          <p>Please use the "Edit User & Assignments" button in the Users tab to manage detailed assignments.</p>
+          <p>Or use the "+ Assign Project" button above to grant a new assignment quickly.</p>
         </div>
-      </form>
-    </div>
+      </div>
+    }
   </div>
+
+  <!-- Create User Modal -->
+  @if (showCreateModal()) {
+    <div class="modal-overlay" (click)="toggleCreateModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Create New User</h2>
+          <button class="close-btn" (click)="toggleCreateModal()">&times;</button>
+        </div>
+
+        <form (submit)="onCreateUser(); $event.preventDefault()">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="table-input"
+              style="width: 100%"
+              [(ngModel)]="email"
+              placeholder="user@example.com"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="table-input"
+              style="width: 100%"
+              [(ngModel)]="password"
+              placeholder="••••••••"
+              required
+              minlength="6"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role" name="role" class="table-input" style="width: 100%" [(ngModel)]="role">
+              <option value="user">User</option>
+              <option value="org-admin">Org Admin</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Permissions</label>
+            <div class="permissions" style="display: flex; gap: 1rem;">
+              <label><input type="checkbox" name="canView" [(ngModel)]="canView" /> View</label>
+              <label><input type="checkbox" name="canEdit" [(ngModel)]="canEdit" /> Edit</label>
+              <label><input type="checkbox" name="canDeploy" [(ngModel)]="canDeploy" /> Deploy</label>
+            </div>
+          </div>
+
+          @if (createError()) {
+            <div class="error-banner">{{ createError() }}</div>
+          }
+          @if (createSuccess()) {
+            <div class="success-banner">{{ createSuccess() }}</div>
+          }
+
+          <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+            <button type="button" class="btn-secondary" (click)="toggleCreateModal()">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="createLoading()">
+              @if (createLoading()) {
+                Creating...
+              } @else {
+                Create User
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Assign Project Modal -->
+  @if (showAssignModal()) {
+    <div class="modal-overlay" (click)="toggleAssignModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Assign Project to User</h2>
+          <button class="close-btn" (click)="toggleAssignModal()">&times;</button>
+        </div>
+
+        <form (submit)="onAssignProject(); $event.preventDefault()">
+          <div class="form-group">
+            <label for="assignUserId">User</label>
+            <select id="assignUserId" name="assignUserId" class="table-input" style="width: 100%" [(ngModel)]="assignUserId">
+              <option value="">Select a user</option>
+              @for (user of users(); track user._id) {
+                <option [value]="user._id">{{ user.email }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="assignProjectId">Project</label>
+            <select id="assignProjectId" name="assignProjectId" class="table-input" style="width: 100%" [(ngModel)]="assignProjectId">
+              <option value="">Select a project</option>
+              @for (project of projects(); track project._id) {
+                <option [value]="project._id">{{ project.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Permissions</label>
+            <div class="permissions" style="display: flex; gap: 1rem;">
+              <label><input type="checkbox" name="assignCanView" [(ngModel)]="assignCanView" /> View</label>
+              <label><input type="checkbox" name="assignCanEdit" [(ngModel)]="assignCanEdit" /> Edit</label>
+              <label><input type="checkbox" name="assignCanDeploy" [(ngModel)]="assignCanDeploy" /> Deploy</label>
+            </div>
+          </div>
+
+          @if (assignError()) {
+            <div class="error-banner">{{ assignError() }}</div>
+          }
+          @if (assignSuccess()) {
+            <div class="success-banner">{{ assignSuccess() }}</div>
+          }
+
+          <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+            <button type="button" class="btn-secondary" (click)="toggleAssignModal()">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="assignLoading()">
+              @if (assignLoading()) {
+                Assigning...
+              } @else {
+                Assign Project
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Edit User Modal -->
+  @if (editingUserId()) {
+    <div class="modal-overlay" (click)="closeEditModal()">
+      <div class="modal-content large" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Edit User</h2>
+          <button class="close-btn" (click)="closeEditModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Role</label>
+            <select class="table-input" style="width: 100%" name="editUserRole" [(ngModel)]="editUserRole">
+              <option value="user">User</option>
+              <option value="org-admin">Org Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Global Permissions</label>
+            <div class="permissions" style="display: flex; gap: 1rem;">
+              <label><input type="checkbox" name="editUserCanView" [(ngModel)]="editUserCanView" /> View</label>
+              <label><input type="checkbox" name="editUserCanEdit" [(ngModel)]="editUserCanEdit" /> Edit</label>
+              <label><input type="checkbox" name="editUserCanDeploy" [(ngModel)]="editUserCanDeploy" /> Deploy</label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 2rem; border-top: 1px solid var(--border-light); padding-top: 1rem;">
+            <label>Assigned Projects</label>
+            @if (userProjectAssignments().get(editingUserId()!) && userProjectAssignments().get(editingUserId()!)!.length > 0) {
+              <div class="data-table-wrapper" style="border: 1px solid var(--border-light); border-radius: 8px; margin-bottom: 1rem;">
+                <table class="data-table" style="margin: 0; width: 100%;">
+                  <tbody>
+                  @for (assignment of userProjectAssignments().get(editingUserId()!); track assignment._id) {
+                    @if (editingAssignmentId() === assignment._id) {
+                      <tr>
+                        <td colspan="2">
+                          <div style="display: flex; gap: 1rem; align-items: center;">
+                            <label><input type="checkbox" name="editAssignmentCanView" [(ngModel)]="editAssignmentCanView" /> View</label>
+                            <label><input type="checkbox" name="editAssignmentCanEdit" [(ngModel)]="editAssignmentCanEdit" /> Edit</label>
+                            <label><input type="checkbox" name="editAssignmentCanDeploy" [(ngModel)]="editAssignmentCanDeploy" /> Deploy</label>
+                            <button class="action-btn-sm success" (click)="onSaveAssignment(assignment._id, editingUserId()!)" [disabled]="editAssignmentLoading()">Save</button>
+                            <button class="action-btn-sm secondary" (click)="cancelEditAssignment()">Cancel</button>
+                          </div>
+                        </td>
+                      </tr>
+                    } @else {
+                      <tr>
+                        <td><strong>{{ assignment.projectName }}</strong></td>
+                        <td style="text-align: right;">
+                          <button class="action-btn-sm" (click)="startEditAssignment(assignment)">Edit</button>
+                          <button class="action-btn-sm danger" style="color: #dc2626; border-color: rgba(220,38,38,0.2); background: rgba(220,38,38,0.1);" (click)="removeAssignment(assignment._id, editingUserId()!)">Remove</button>
+                        </td>
+                      </tr>
+                    }
+                  }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="text-muted">No projects assigned</p>
+            }
+          </div>
+
+          <div class="form-group" style="background: var(--bg-card); padding: 1rem; border: 1px solid var(--border-light); border-radius: 8px;">
+            <label>Add Project to User</label>
+            <div class="project-selector" style="position: relative;">
+              <input
+                type="text"
+                name="projectSearch"
+                class="table-input"
+                style="width: 100%"
+                [(ngModel)]="projectSearchQuery"
+                placeholder="Search projects..."
+                (input)="filterProjects()"
+              />
+              @if (projectSearchQuery() || showProjectDropdown()) {
+                <div class="project-dropdown" style="position: absolute; width: 100%; background: white; border: 1px solid var(--border-light); z-index: 10;">
+                  @if (filteredProjects().length > 0) {
+                    @for (project of filteredProjects(); track project._id) {
+                      <div class="project-option" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid var(--border-light);" (click)="selectProjectToAdd(project)">
+                        <span class="project-option-name">{{ project.name }}</span>
+                        @if (isProjectAssigned(project._id)) {
+                          <span class="project-option-status" style="float: right; color: #059669; font-size: 0.8rem;">Assigned</span>
+                        }
+                      </div>
+                    }
+                  } @else {
+                    <div style="padding: 0.5rem; color: var(--text-muted);">No projects found</div>
+                  }
+                </div>
+              }
+            </div>
+            @if (selectedProjectsToAdd().length > 0) {
+              <div class="selected-projects" style="margin-top: 1rem;">
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">Selected:</div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                  @for (project of selectedProjectsToAdd(); track project._id) {
+                    <div class="project-chip" style="background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                      {{ project.name }}
+                      <button style="border: none; background: none; cursor: pointer;" (click)="removeProjectFromSelection(project._id)">&times;</button>
+                    </div>
+                  }
+                </div>
+                <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                  <label><input type="checkbox" name="modalAddCanView" [(ngModel)]="modalAddCanView" /> View</label>
+                  <label><input type="checkbox" name="modalAddCanEdit" [(ngModel)]="modalAddCanEdit" /> Edit</label>
+                  <label><input type="checkbox" name="modalAddCanDeploy" [(ngModel)]="modalAddCanDeploy" /> Deploy</label>
+                </div>
+                <button class="btn-primary" style="margin-top: 1rem; padding: 0.5rem 1rem; font-size: 0.9rem;" (click)="addSelectedProjects()">Add Selected Projects</button>
+              </div>
+            }
+          </div>
+        </div>
+        <div class="modal-footer" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+          @if (editError()) {
+            <div class="error-banner">{{ editError() }}</div>
+          }
+          @if (editSuccess()) {
+            <div class="success-banner">{{ editSuccess() }}</div>
+          }
+          <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+            <button class="btn-secondary" (click)="closeEditModal()">Cancel</button>
+            <button class="btn-primary" (click)="onSaveUser()" [disabled]="editLoading()">
+              @if (editLoading()) {
+                Saving...
+              } @else {
+                Save User Changes
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
 </div>

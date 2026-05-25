@@ -48,6 +48,9 @@ export class DashboardComponent implements OnInit {
   // Metrics State
   protected metricsData = signal<any[]>([]);
   protected loadingMetrics = signal(false);
+  protected metricsOrganizations = signal<{_id: string, name: string}[]>([]);
+  protected selectedMetricsOrgId = signal<string>('');
+  protected metricsSearchText = signal<string>('');
 
   // New Project Form Signals
   protected showCreateForm = signal(false);
@@ -165,15 +168,44 @@ export class DashboardComponent implements OnInit {
 
   loadMetrics() {
     this.loadingMetrics.set(true);
-    this.http.get<any[]>(`${environment.apiUrl}/metrics/api-usage?limit=50`).subscribe({
+    let url = `${environment.apiUrl}/metrics/deployed-usage?limit=50`;
+    if (this.selectedMetricsOrgId()) {
+      url += `&orgId=${this.selectedMetricsOrgId()}`;
+    }
+    
+    this.http.get<any[]>(url).subscribe({
       next: (data) => {
         this.metricsData.set(data);
         this.loadingMetrics.set(false);
+        
+        // If we are admin, fetch organizations for the autocomplete if not already fetched
+        if (this.isAdmin && this.metricsOrganizations().length === 0) {
+          this.http.get<any[]>(`${environment.apiUrl}/organizations`).subscribe({
+            next: (orgs) => this.metricsOrganizations.set(orgs),
+            error: () => console.error('Failed to load organizations for filter')
+          });
+        }
       },
       error: () => {
         this.loadingMetrics.set(false);
       }
     });
+  }
+
+  onMetricsOrgSearch(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.metricsSearchText.set(value);
+    
+    // Find matching org
+    const matchedOrg = this.metricsOrganizations().find(o => o.name.toLowerCase() === value.toLowerCase());
+    
+    if (matchedOrg) {
+      this.selectedMetricsOrgId.set(matchedOrg._id);
+      this.loadMetrics();
+    } else if (value.trim() === '') {
+      this.selectedMetricsOrgId.set('');
+      this.loadMetrics();
+    }
   }
 
   // Docker Operations

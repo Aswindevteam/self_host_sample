@@ -2,47 +2,52 @@
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background: radial-gradient(ellipse at top right, #0f172a 0%, #030712 70%);
-  color: #f3f4f6;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* ─── Sidenav ─── */
 .sidenav {
-  width: 230px;
+  width: 250px;
   flex-shrink: 0;
-  background: rgba(10, 15, 30, 0.9);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.6);
+  border-right: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
   overflow-y: auto;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 /* Logo */
 .sidenav-logo {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 1.5rem 1.25rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 0.75rem;
+  padding: 1.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-light);
 
   .pulse-dot {
-    width: 10px;
-    height: 10px;
-    background: #10b981;
+    width: 12px;
+    height: 12px;
+    background: var(--accent-secondary);
     border-radius: 50%;
-    box-shadow: 0 0 10px #10b981;
+    box-shadow: 0 0 14px var(--accent-secondary);
     flex-shrink: 0;
+    animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.9); }
   }
 
   .logo-text {
-    font-size: 1.1rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #fff, #818cf8);
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: var(--gradient-brand);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
@@ -51,7 +56,7 @@
 /* Navigation */
 .sidenav-nav {
   flex: 1;
-  padding: 1rem 0.75rem;
+  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -60,73 +65,66 @@
 .nav-group {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.4rem;
 }
 
 .nav-section-label {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #374151;
-  font-weight: 700;
-  padding: 0 0.5rem;
-  margin-bottom: 0.35rem;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 0 0.75rem;
+  margin-bottom: 0.5rem;
   display: block;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  color: #6b7280;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   border: 1px solid transparent;
 
   .nav-icon {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
     stroke: currentColor;
+    transition: transform 0.3s;
   }
 
   &:hover {
-    color: #d1d5db;
-    background: rgba(255, 255, 255, 0.04);
+    color: var(--accent-primary);
+    background: rgba(0, 0, 0, 0.03);
+    .nav-icon { transform: scale(1.1); }
   }
 
   &.active {
-    color: #a5b4fc;
-    background: rgba(79, 70, 229, 0.12);
-    border-color: rgba(79, 70, 229, 0.2);
+    color: var(--text-main);
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, transparent 100%);
+    border-color: rgba(99, 102, 241, 0.15);
 
-    .nav-icon { stroke: #818cf8; }
+    .nav-icon { stroke: var(--accent-primary); }
 
     &::before {
       content: '';
       position: absolute;
-      left: -0.75rem;
+      left: -1rem;
       top: 50%;
       transform: translateY(-50%);
-      width: 3px;
+      width: 4px;
       height: 60%;
-      background: #6366f1;
-      border-radius: 0 2px 2px 0;
-    }
-  }
-
-  &.nav-item--deploy {
-    &.active {
-      color: #6ee7b7;
-      background: rgba(16, 185, 129, 0.1);
-      border-color: rgba(16, 185, 129, 0.2);
-      .nav-icon { stroke: #34d399; }
-      &::before { background: #10b981; }
+      background: var(--accent-primary);
+      border-radius: 0 4px 4px 0;
+      box-shadow: 0 0 10px var(--accent-primary);
     }
   }
 }
@@ -135,24 +133,25 @@
 .sidenav-footer {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(0, 0, 0, 0.15);
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .user-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
 
 .user-info {
@@ -160,52 +159,57 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
 }
 
 .user-email {
-  font-size: 0.78rem;
-  color: #d1d5db;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .user-role {
-  font-size: 0.65rem;
-  color: #6b7280;
+  font-size: 0.7rem;
+  color: var(--text-muted);
   text-transform: capitalize;
 
   &.admin-badge {
     color: #f59e0b;
     background: rgba(245, 158, 11, 0.1);
     border: 1px solid rgba(245, 158, 11, 0.25);
-    padding: 0.1rem 0.35rem;
-    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
     font-weight: 600;
+    display: inline-block;
+    width: max-content;
   }
 }
 
 .logout-btn {
-  background: transparent;
-  border: none;
-  color: #4b5563;
+  background: white;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 0.3rem;
-  border-radius: 6px;
+  padding: 0.5rem;
+  border-radius: 8px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   flex-shrink: 0;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
   }
 
   &:hover {
-    color: #f87171;
-    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    transform: scale(1.05);
   }
 }
 
@@ -214,6 +218,6 @@
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 2.5rem;
+  padding: 3rem;
   box-sizing: border-box;
 }
