@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -16,6 +18,12 @@ export class ProjectsController {
   @Post()
   async create(@Body() createProjectDto: CreateProjectDto, @Request() req: any) {
     return this.projectsService.create(createProjectDto, req.user);
+  }
+
+  @Post('upload-dist')
+  @UseInterceptors(FilesInterceptor('files', 2000, { storage: memoryStorage() }))
+  async uploadDist(@UploadedFiles() files: Express.Multer.File[]) {
+    return this.projectsService.extractDistUpload(files);
   }
 
   @Get()
@@ -37,6 +45,11 @@ export class ProjectsController {
     return this.projectsService.update(id, updateProjectDto, req.user);
   }
 
+  @Get(':id/nginx-history')
+  async getNginxConfigHistory(@Param('id') id: string, @Request() req: any) {
+    return this.projectsService.getNginxConfigHistory(id, req.user);
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req: any) {
     return this.projectsService.remove(id, req.user);
@@ -46,5 +59,29 @@ export class ProjectsController {
   @Post('assign')
   async assignToUser(@Body() assignProjectDto: AssignProjectDto, @Request() req: any) {
     return this.projectsService.assignToUser(assignProjectDto, req.user);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN)
+  @Get('assignments/user/:userId')
+  async getUserAssignments(@Param('userId') userId: string, @Request() req: any) {
+    return this.projectsService.getUserAssignments(userId, req.user);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN)
+  @Delete('assignments/:assignmentId')
+  async removeAssignment(@Param('assignmentId') assignmentId: string, @Request() req: any) {
+    return this.projectsService.removeAssignment(assignmentId, req.user);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN)
+  @Put('assignments/:assignmentId')
+  async updateAssignment(
+    @Param('assignmentId') assignmentId: string,
+    @Body('canView') canView: boolean,
+    @Body('canEdit') canEdit: boolean,
+    @Body('canDeploy') canDeploy: boolean,
+    @Request() req: any,
+  ) {
+    return this.projectsService.updateAssignment(assignmentId, { canView, canEdit, canDeploy }, req.user);
   }
 }

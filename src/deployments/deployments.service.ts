@@ -188,12 +188,10 @@ if (targetDir) {
 
         // Generate a Dockerfile to serve the static content
         const dockerfilePath = path.join(tempDir, 'Dockerfile');
-        const dockerfileContent = `FROM node:20-alpine
-WORKDIR /usr/src/app
-RUN npm install -g serve
-COPY . .
+        const dockerfileContent = `FROM nginx:alpine
+COPY . /usr/share/nginx/html
+RUN echo "server { listen ${project.port}; root /usr/share/nginx/html; index index.html; location / { try_files \\$uri \\$uri/ /index.html; } }" > /etc/nginx/conf.d/default.conf
 EXPOSE ${project.port}
-CMD ["serve", "-s", ".", "-l", "${project.port}"]
 `;
         fs.writeFileSync(dockerfilePath, dockerfileContent);
 
@@ -276,7 +274,7 @@ CMD ["serve", "-s", ".", "-l", "${project.port}"]
       // Update Nginx Proxy config if project domain is configured
       if (project.domain) {
         await appendLog(`\n[Orchestrator] Configuring Nginx reverse proxy routing for domain ${project.domain}...\n`);
-        await this.nginxService.configureDomain(projectId, project.domain, project.port);
+        await this.nginxService.configureDomain(projectId, project.domain, project.port, project.customNginxConfig);
       }
 
       this.logger.log(`Successful deployment ${deploymentId} for project ${project.name}`);

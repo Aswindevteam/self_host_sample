@@ -26,18 +26,83 @@ export class NginxService {
     }
   }
 
-  async configureDomain(projectId: string, domain: string, port: number): Promise<void> {
+  async configureDomain(projectId: string, domain: string, port: number, customConfig?: string): Promise<void> {
     if (!domain) return;
 
-    const configContent = `server {
+    const configContent = customConfig ? customConfig : `# ==============================================================================
+# Enterprise-Grade Nginx Configuration Template
+# Designed for Angular Frontend + .NET Backend with SignalR
+# ==============================================================================
+
+# 1. Load Balancing & Upstream Servers
+upstream backend_api_${projectId} {
+    server localhost:${port};
+}
+
+server {
+    # 2. Server Configuration
     listen 80;
     server_name ${domain};
+    
+    # Force HTTPS redirect (requires SSL)
+    # return 301 https://$host$request_uri;
 
+    # 3. Security Headers
+    server_tokens off;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # 4. File Upload Limits
+    client_max_body_size 50M;
+
+    # 5. Compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json application/javascript image/svg+xml;
+
+    # 6. Static Hosting & Caching (Angular)
+    location ~* \\.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg)$ {
+        expires 6M;
+        access_log off;
+        add_header Cache-Control "public, max-age=15552000, immutable";
+        proxy_pass http://backend_api_${projectId};
+    }
+
+    # 7. Reverse Proxy (Frontend & Default)
     location / {
-        proxy_pass http://localhost:${port};
+        proxy_pass http://backend_api_${projectId};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # 8. .NET API
+    location /api/ {
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+        expires off;
+        
+        proxy_pass http://backend_api_${projectId}/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # 9. SignalR / WebSockets
+    location /hub/ {
+        proxy_pass http://backend_api_${projectId}/hub/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400s;
     }
 }
 `;

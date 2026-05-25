@@ -1,7 +1,10 @@
 import { Injectable, OnModuleInit, NotFoundException, ForbiddenException } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Project, ProjectDocument } from './schemas/project.schema';
+import { NginxConfigHistory, NginxConfigHistoryDocument } from './schemas/nginx-config-history.schema';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { AssignProjectDto } from './dto/assign-project.dto';
@@ -9,11 +12,13 @@ import { OrganizationsService } from '../organizations/organizations.service';
 import { UserRole } from '../users/enums/user-role.enum';
 import { UsersService } from '../users/users.service';
 import { ProjectAssignmentsService } from './project-assignments.service';
+import type { Multer } from 'multer';
 
 @Injectable()
 export class ProjectsService implements OnModuleInit {
   constructor(
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
+    @InjectModel(NginxConfigHistory.name) private nginxHistoryModel: Model<NginxConfigHistoryDocument>,
     private orgsService: OrganizationsService,
     private usersService: UsersService,
     private projectAssignmentsService: ProjectAssignmentsService,
@@ -137,7 +142,7 @@ export class ProjectsService implements OnModuleInit {
       const assignment = await this.projectAssignmentsService.findByUser(user.userId);
       const projectAssignment = assignment.find(a => a.projectId.toString() === id);
 
-      if (!projectAssignment || !projectAssignment.canEdit) {
+      if (!projectAssignment || (!projectAssignment.canEdit && !(projectAssignment.canDeploy && updateData.distPath !== undefined && Object.keys(updateData).every(k => k === 'distPath')))) {
         throw new ForbiddenException('You do not have permission to edit this project');
       }
 
@@ -177,7 +182,26 @@ export class ProjectsService implements OnModuleInit {
         project[key] = updateData[key];
       }
     }
+
+    // If customNginxConfig was updated, save history
+    if (updateData.customNginxConfig !== undefined) {
+      await new this.nginxHistoryModel({
+        projectId: project._id,
+        configContent: updateData.customNginxConfig,
+        updatedBy: new Types.ObjectId(user.userId),
+      }).save();
+    }
+
     return project.save();
+  }
+
+  async getNginxConfigHistory(id: string, user: any): Promise<NginxConfigHistoryDocument[]> {
+    await this.findOne(id, user); // enforces visibility
+    return this.nginxHistoryModel
+      .find({ projectId: new Types.ObjectId(id) })
+      .sort({ createdAt: -1 })
+      .populate('updatedBy', 'email')
+      .exec();
   }
 
   /** Delete: admin and org-admin (for their own projects) */
@@ -254,5 +278,154 @@ export class ProjectsService implements OnModuleInit {
     }
 
     throw new ForbiddenException('Only administrators and org-admins can assign projects');
+  }
+
+  /** Get all project assignments for a specific user */
+  async getUserAssignments(userId: string, user: any): Promise<any[]> {
+    // Verify user exists
+    const targetUser = await this.usersService.findOneById(userId);
+    if (!targetUser) throw new NotFoundException('User not found');
+
+    // Admin can view any user's assignments
+    if (user.role === UserRole.ADMIN) {
+      const assignments = await this.projectAssignmentsService.findByUser(userId);
+      // Fetch project names
+      const projectIds = assignments.map(a => a.projectId);
+      const projects = await this.projectModel.find({ _id: { $in: projectIds } }).exec();
+      const projectMap = new Map(projects.map(p => [p._id.toString(), p.name]));
+      return assignments.map(a => ({
+        ...a.toObject(),
+        projectName: projectMap.get(a.projectId.toString()) || 'Unknown Project',
+      }));
+    }
+
+    // Org-admin can only view assignments from their organization
+    if (user.role === UserRole.ORG_ADMIN) {
+      const currentUser = await this.usersService.findOneById(user.userId);
+      if (!currentUser?.organizationId) {
+        throw new ForbiddenException('You are not assigned to an organization');
+      }
+
+      // Check if target user is in the same organization
+      if (!targetUser.organizationId || targetUser.organizationId.toString() !== currentUser.organizationId.toString()) {
+        throw new ForbiddenException('You can only view assignments for users in your organization');
+      }
+
+      const assignments = await this.projectAssignmentsService.findByUser(userId);
+      // Fetch project names
+      const projectIds = assignments.map(a => a.projectId);
+      const projects = await this.projectModel.find({ _id: { $in: projectIds } }).exec();
+      const projectMap = new Map(projects.map(p => [p._id.toString(), p.name]));
+      return assignments.map(a => ({
+        ...a.toObject(),
+        projectName: projectMap.get(a.projectId.toString()) || 'Unknown Project',
+      }));
+    }
+
+    throw new ForbiddenException('Only administrators and org-admins can view assignments');
+  }
+
+  /** Remove a project assignment */
+  async removeAssignment(assignmentId: string, user: any): Promise<any> {
+    const assignment = await this.projectAssignmentsService['projectAssignmentModel'].findById(assignmentId).exec();
+    if (!assignment) throw new NotFoundException('Assignment not found');
+
+    // Admin can remove any assignment
+    if (user.role === UserRole.ADMIN) {
+      await this.projectAssignmentsService.remove(assignment.projectId.toString(), assignment.userId.toString());
+      return { message: 'Assignment removed successfully' };
+    }
+
+    // Org-admin can only remove assignments from their organization
+    if (user.role === UserRole.ORG_ADMIN) {
+      const currentUser = await this.usersService.findOneById(user.userId);
+      if (!currentUser?.organizationId) {
+        throw new ForbiddenException('You are not assigned to an organization');
+      }
+
+      // Check if the project owner is in the same organization
+      const project = await this.projectModel.findById(assignment.projectId).exec();
+      if (!project) throw new NotFoundException('Project not found');
+      const projectOwner = await this.usersService.findOneById(project.owner.toString());
+      if (!projectOwner?.organizationId || projectOwner.organizationId.toString() !== currentUser.organizationId.toString()) {
+        throw new ForbiddenException('You can only remove assignments from your organization');
+      }
+
+      await this.projectAssignmentsService.remove(assignment.projectId.toString(), assignment.userId.toString());
+      return { message: 'Assignment removed successfully' };
+    }
+
+    throw new ForbiddenException('Only administrators and org-admins can remove assignments');
+  }
+
+  /** Update a project assignment's permissions */
+  async updateAssignment(assignmentId: string, permissions: { canView: boolean; canEdit: boolean; canDeploy: boolean }, user: any): Promise<any> {
+    const assignment = await this.projectAssignmentsService['projectAssignmentModel'].findById(assignmentId).exec();
+    if (!assignment) throw new NotFoundException('Assignment not found');
+
+    // Admin can update any assignment
+    if (user.role === UserRole.ADMIN) {
+      await this.projectAssignmentsService.assignToUser(
+        assignment.projectId.toString(),
+        assignment.userId.toString(),
+        permissions.canView,
+        permissions.canEdit,
+        permissions.canDeploy,
+      );
+      return { message: 'Assignment updated successfully' };
+    }
+
+    // Org-admin can only update assignments from their organization
+    if (user.role === UserRole.ORG_ADMIN) {
+      const currentUser = await this.usersService.findOneById(user.userId);
+      if (!currentUser?.organizationId) {
+        throw new ForbiddenException('You are not assigned to an organization');
+      }
+
+      // Check if the project owner is in the same organization
+      const project = await this.projectModel.findById(assignment.projectId).exec();
+      if (!project) throw new NotFoundException('Project not found');
+      const projectOwner = await this.usersService.findOneById(project.owner.toString());
+      if (!projectOwner?.organizationId || projectOwner.organizationId.toString() !== currentUser.organizationId.toString()) {
+        throw new ForbiddenException('You can only update assignments from your organization');
+      }
+
+      await this.projectAssignmentsService.assignToUser(
+        assignment.projectId.toString(),
+        assignment.userId.toString(),
+        permissions.canView,
+        permissions.canEdit,
+        permissions.canDeploy,
+      );
+      return { message: 'Assignment updated successfully' };
+    }
+
+    throw new ForbiddenException('Only administrators and org-admins can update assignments');
+  }
+
+  /**
+   * Extract uploaded dist folder files to a temp directory on the server.
+   * Files arrive with their relative paths encoded in file.originalname.
+   * Returns the server-side distPath for use in project configuration.
+   */
+  async extractDistUpload(files: Express.Multer.File[]): Promise<{ distPath: string }> {
+    if (!files || files.length === 0) {
+      throw new Error('No files uploaded');
+    }
+
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const extractPath = path.join('/tmp', 'dist-uploads', uniqueId);
+
+    for (const file of files) {
+      // originalname carries the relative path (e.g. "browser/index.html")
+      // Sanitize to prevent path traversal attacks
+      const safeName = file.originalname.replace(/\.\./g, '').replace(/^\//, '');
+      const filePath = path.join(extractPath, safeName);
+      const fileDir = path.dirname(filePath);
+      fs.mkdirSync(fileDir, { recursive: true });
+      fs.writeFileSync(filePath, file.buffer);
+    }
+
+    return { distPath: extractPath };
   }
 }

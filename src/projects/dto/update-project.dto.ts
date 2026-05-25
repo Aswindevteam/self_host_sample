@@ -31,6 +31,10 @@ export class UpdateProjectDto {
   @IsOptional()
   domain?: string;
 
+  @IsString()
+  @IsOptional()
+  customNginxConfig?: string;
+
   @IsObject()
   @IsOptional()
   env?: Record<string, string>;

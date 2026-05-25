@@ -9,6 +9,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { DeploymentsModule } from './deployments/deployments.module';
 import { DockerModule } from './docker/docker.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
     DeploymentsModule,
     DockerModule,
     OrganizationsModule,
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

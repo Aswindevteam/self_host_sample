@@ -23,8 +23,11 @@ export class Project {
   @Prop({ default: 3000 })
   port: number;
 
-  @Prop({ trim: true, unique: true, sparse: true })
+  @Prop({ trim: true })
   domain?: string;
+
+  @Prop()
+  customNginxConfig?: string;
 
   @Prop({ type: Map, of: String, default: {} })
   env: Map<string, string>;
