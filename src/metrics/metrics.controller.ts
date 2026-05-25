@@ -1,4 +1,4 @@
-import { Controller, Get, Request, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Request, UseGuards, Query, Param } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -11,18 +11,33 @@ export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 
   @Get('api-usage')
-  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN)
-  async getApiUsage(@Request() req: any, @Query('limit') limitStr?: string) {
+  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.USER)
+  async getApiUsage(@Request() req: any, @Query('limit') limitStr?: string, @Query('orgId') orgId?: string) {
     const user = req.user;
     const limit = limitStr ? parseInt(limitStr, 10) : 10;
     
-    // Admin sees all usage by default (or can pass orgId if implemented later).
-    // OrgAdmin only sees usage for their organization.
-    let organizationId = undefined;
-    if (user.role === UserRole.ORG_ADMIN) {
+    let organizationId: string | undefined;
+    if (user.role === UserRole.ORG_ADMIN || user.role === UserRole.USER) {
       organizationId = user.organizationId;
+    } else if (user.role === UserRole.ADMIN && orgId) {
+      organizationId = orgId;
     }
     
     return this.metricsService.getTopApis(organizationId, limit);
+  }
+
+  @Get('deployed-usage')
+  @Roles(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.USER)
+  async getDeployedUsage(@Request() req: any, @Query('limit') limitStr?: string, @Query('orgId') orgId?: string) {
+    const user = req.user;
+    
+    let organizationId:string | undefined = undefined;
+    if (user.role === UserRole.ORG_ADMIN || user.role === UserRole.USER) {
+      organizationId = user.organizationId;
+    } else if (user.role === UserRole.ADMIN && orgId) {
+      organizationId = orgId;
+    }
+    
+    return this.metricsService.getDeployedAppsUsage(organizationId);
   }
 }

@@ -124,57 +124,31 @@ export class DeploymentsService {
           });
         });
 
-        // Step 2: Ensure Dockerfile exists, auto-detect type and write Dockerfile if missing
+        // Step 2: Build Image using Dockerfile or Cloud Native Buildpacks
         const dockerfilePath = path.join(tempDir, 'Dockerfile');
-        if (!fs.existsSync(dockerfilePath)) {
-          await appendLog(`\n[Orchestrator] No Dockerfile found in repository. Auto-detecting project language/framework and generating configuration...\n`);
-          const dockerfileContent = this.generateDockerfileContent(tempDir, project.port);
-          fs.writeFileSync(dockerfilePath, dockerfileContent);
-
-          const startScriptContent = `const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
-
-function getStaticDir(dir) {
-  if (!fs.existsSync(dir)) return null;
-  const files = fs.readdirSync(dir);
-  for (const file of files) {
-    const fullPath = path.join(dir, file);
-    if (fs.statSync(fullPath).isDirectory()) {
-      const res = getStaticDir(fullPath);
-      if (res) return res;
-    } else if (file === 'index.html') {
-      return dir;
-    }
-  }
-  return null;
-}
-
-const targetDir = getStaticDir('dist') || getStaticDir('build');
-if (targetDir) {
-  console.log('[StartScript] Serving static directory: ' + targetDir);
-  const serve = spawn('npx', ['serve', '-s', targetDir, '-l', '${project.port}'], { stdio: 'inherit', shell: true });
-  serve.on('close', (code) => process.exit(code));
-} else {
-  console.log('[StartScript] Static index.html not found, falling back to npm start...');
-  const start = spawn('npm', ['start'], { stdio: 'inherit', shell: true });
-  start.on('close', (code) => process.exit(code));
-}
-`;
-          fs.writeFileSync(path.join(tempDir, 'start.js'), startScriptContent);
-        }
-
-        // Step 3: Docker Build
-        await appendLog(`\n[Orchestrator] Starting Docker image build (${imageName})...\n`);
-        await new Promise<void>((resolve, reject) => {
-          const build = spawn('docker', ['build', '-t', imageName, tempDir]);
-          build.stdout.on('data', (data) => appendLog(data.toString()));
-          build.stderr.on('data', (data) => appendLog(data.toString()));
-          build.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Docker build failed with exit code ${code}`));
+        if (fs.existsSync(dockerfilePath)) {
+          await appendLog(`\n[Orchestrator] Starting Docker image build (${imageName}) using repository Dockerfile...\n`);
+          await new Promise<void>((resolve, reject) => {
+            const build = spawn('docker', ['build', '-t', imageName, tempDir]);
+            build.stdout.on('data', (data) => appendLog(data.toString()));
+            build.stderr.on('data', (data) => appendLog(data.toString()));
+            build.on('close', (code) => {
+              if (code === 0) resolve();
+              else reject(new Error(`Docker build failed with exit code ${code}`));
+            });
           });
-        });
+        } else {
+          await appendLog(`\n[Orchestrator] No Dockerfile found in repository. Utilizing Cloud Native Buildpacks to auto-detect language and build image (${imageName})...\n`);
+          await new Promise<void>((resolve, reject) => {
+            const build = spawn('pack', ['build', imageName, '--builder', 'paketobuildpacks/builder-jammy-base', '--path', tempDir]);
+            build.stdout.on('data', (data) => appendLog(data.toString()));
+            build.stderr.on('data', (data) => appendLog(data.toString()));
+            build.on('close', (code) => {
+              if (code === 0) resolve();
+              else reject(new Error(`Cloud Native Buildpacks (pack build) failed with exit code ${code}. Please ensure the pack CLI is installed on the host.`));
+            });
+          });
+        }
       } else if (project.distPath) {
         await this.updateStatus(deploymentId, 'BUILDING', 'Preparing dist folder...');
         fs.mkdirSync(tempDir, { recursive: true });

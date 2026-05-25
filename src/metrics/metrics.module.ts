@@ -6,9 +6,14 @@ import { ApiMetric, ApiMetricSchema } from './schemas/api-metric.schema';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiTrackingInterceptor } from './api-tracking.interceptor';
 
+import { Project, ProjectSchema } from '../projects/schemas/project.schema';
+
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: ApiMetric.name, schema: ApiMetricSchema }])
+    MongooseModule.forFeature([
+      { name: ApiMetric.name, schema: ApiMetricSchema },
+      { name: Project.name, schema: ProjectSchema }
+    ])
   ],
   providers: [
     MetricsService,

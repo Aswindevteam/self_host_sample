@@ -16,10 +16,14 @@ export class NginxService {
     try {
       fs.mkdirSync(this.sitesAvailableDir, { recursive: true });
       fs.mkdirSync(this.sitesEnabledDir, { recursive: true });
+      // Check if we actually have write access to these directories
+      fs.accessSync(this.sitesAvailableDir, fs.constants.W_OK);
+      fs.accessSync(this.sitesEnabledDir, fs.constants.W_OK);
+      
       this.useSystemDirs = true;
       this.logger.log('Using system Nginx directories: /etc/nginx/sites-available and /etc/nginx/sites-enabled');
     } catch (err) {
-      this.logger.warn(`Cannot access system Nginx directories: ${err.message}. Using local directory: ${this.localConfigDir}`);
+      this.logger.warn(`Cannot write to system Nginx directories: ${err.message}. Using local directory: ${this.localConfigDir}`);
       this.useSystemDirs = false;
       // Ensure local directory exists
       fs.mkdirSync(this.localConfigDir, { recursive: true });
@@ -29,7 +33,7 @@ export class NginxService {
   async configureDomain(projectId: string, domain: string, port: number, customConfig?: string): Promise<void> {
     if (!domain) return;
 
-    const configContent = customConfig ? customConfig : `# ==============================================================================
+    const rawConfigContent = customConfig ? customConfig : `# ==============================================================================
 # Enterprise-Grade Nginx Configuration Template
 # Designed for Angular Frontend + .NET Backend with SignalR
 # ==============================================================================
@@ -106,6 +110,15 @@ server {
     }
 }
 `;
+
+    const logPath = path.join(process.cwd(), 'nginx', 'logs', `${projectId}.log`);
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    
+    // Inject access_log directive into the server block
+    let configContent = rawConfigContent;
+    if (!configContent.includes('access_log')) {
+      configContent = configContent.replace('server {', `server {\n    access_log ${logPath};\n`);
+    }
 
     const configFileName = `${projectId}.conf`;
 
