@@ -72,11 +72,69 @@
         }
 
         @if (deployMethod() === 'dist') {
-          <div class="form-group">
-            <label for="distPath">Dist Folder Path *</label>
-            <input type="text" id="distPath" [(ngModel)]="distPath" placeholder="dist/my-app or /absolute/path/to/dist" />
-            <span class="field-hint">Absolute path to your built output folder on this server</span>
-          </div>
+          <!-- Hidden folder input -->
+          <input
+            #folderInput
+            type="file"
+            webkitdirectory
+            multiple
+            style="display:none"
+            (change)="onFolderInputChange($event)"
+          />
+
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 0.5rem;">
+              <button class="btn-ghost" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;" (click)="toggleDistInputMethod()">
+                {{ useManualDistPath() ? 'Switch to Folder Upload' : 'Enter Server Path Manually' }}
+              </button>
+            </div>
+
+            @if (useManualDistPath()) {
+              <div class="form-group">
+                <label for="distPath">Dist Folder Path *</label>
+                <input type="text" id="distPath" [(ngModel)]="distPath" placeholder="/home/user/dist" />
+                <span class="field-hint">Absolute path to your built output folder on this server</span>
+              </div>
+            } @else {
+              <!-- Drag-and-drop zone -->
+              <div
+                class="drop-zone"
+                [class.drag-over]="isDragOver()"
+                [class.is-uploading]="distUploading()"
+                [class.is-uploaded]="distUploaded()"
+                (dragover)="onDragOver($event)"
+                (dragleave)="onDragLeave($event)"
+                (drop)="onDrop($event)"
+                (click)="clickFolderInput()"
+                id="drop-zone-dist"
+              >
+                @if (distUploading()) {
+                  <div class="dz-state">
+                    <div class="dz-spinner"></div>
+                    <p class="dz-title">Uploading files…</p>
+                    <small class="dz-sub">{{ distFileCount() }} files detected</small>
+                  </div>
+                } @else if (distUploaded()) {
+                  <div class="dz-state">
+                    <div class="dz-check">✓</div>
+                    <p class="dz-title">{{ distFolderName() }}</p>
+                    <small class="dz-sub">{{ distFileCount() }} files uploaded successfully</small>
+                    <button
+                      class="dz-change-btn"
+                      (click)="$event.stopPropagation(); resetDistUpload()"
+                    >
+                      ↺ Choose different folder
+                    </button>
+                  </div>
+                } @else {
+                  <div class="dz-state">
+                    <div class="dz-icon">📂</div>
+                    <p class="dz-title">Drag &amp; drop your dist folder here</p>
+                    <small class="dz-sub">or click to choose folder</small>
+                    <small class="dz-hint">Supports any build output folder (Angular, React, Vue…)</small>
+                  </div>
+                }
+              </div>
+            }
         }
       </div>
 
@@ -239,7 +297,8 @@
             <div class="review-row"><span>Repository</span><strong>{{ gitUrl() }}</strong></div>
             <div class="review-row"><span>Branch</span><strong>{{ branch() }}</strong></div>
           } @else {
-            <div class="review-row"><span>Dist Path</span><strong>{{ distPath() }}</strong></div>
+            <div class="review-row"><span>Folder</span><strong>{{ distFolderName() }}</strong></div>
+            <div class="review-row"><span>Files</span><strong>{{ distFileCount() }} files uploaded</strong></div>
           }
           <div class="review-row"><span>Container Port</span><strong>{{ port() }}</strong></div>
         </div>

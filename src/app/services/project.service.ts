@@ -12,6 +12,7 @@ export interface Project {
   branch?: string;
   port: number;
   domain?: string;
+  customNginxConfig?: string;
   env: Record<string, string>;
   createdAt: string;
   owner?: { _id: string; email: string } | string;
@@ -41,5 +42,13 @@ export class ProjectService {
 
   deleteProject(id: string): Observable<any> {
     return this.http.delete<any>(`${environment.apiUrl}/projects/${id}`);
+  }
+
+  uploadDist(formData: FormData): Observable<{ distPath: string }> {
+    return this.http.post<{ distPath: string }>(`${environment.apiUrl}/projects/upload-dist`, formData);
+  }
+
+  getNginxConfigHistory(id: string): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiUrl}/projects/${id}/nginx-history`);
   }
 }

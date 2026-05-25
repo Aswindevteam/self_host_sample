@@ -28,7 +28,7 @@ export class DashboardComponent implements OnInit {
     return this.authService.currentUser()?.role === 'org-admin';
   }
 
-  protected activeTab = signal<'apps' | 'docker'>('apps');
+  protected activeTab = signal<'apps' | 'docker' | 'metrics'>('apps');
 
   // Apps State
   protected projects = signal<Project[]>([]);
@@ -44,6 +44,10 @@ export class DashboardComponent implements OnInit {
   protected selectedContainerName = signal('');
   protected selectedContainerLogs = signal<string | null>(null);
   protected loadingLogs = signal(false);
+
+  // Metrics State
+  protected metricsData = signal<any[]>([]);
+  protected loadingMetrics = signal(false);
 
   // New Project Form Signals
   protected showCreateForm = signal(false);
@@ -90,12 +94,14 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  setTab(tab: 'apps' | 'docker') {
+  setTab(tab: 'apps' | 'docker' | 'metrics') {
     this.activeTab.set(tab);
     if (tab === 'apps') {
       this.loadProjects();
-    } else {
+    } else if (tab === 'docker') {
       this.loadContainers();
+    } else if (tab === 'metrics') {
+      this.loadMetrics();
     }
   }
 
@@ -154,6 +160,19 @@ export class DashboardComponent implements OnInit {
       error: () => {
         this.loadingDocker.set(false);
       },
+    });
+  }
+
+  loadMetrics() {
+    this.loadingMetrics.set(true);
+    this.http.get<any[]>(`${environment.apiUrl}/metrics/api-usage?limit=50`).subscribe({
+      next: (data) => {
+        this.metricsData.set(data);
+        this.loadingMetrics.set(false);
+      },
+      error: () => {
+        this.loadingMetrics.set(false);
+      }
     });
   }
 

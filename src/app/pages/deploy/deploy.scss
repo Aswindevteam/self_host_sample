@@ -526,3 +526,123 @@
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── Dist Drag-and-Drop Zone ─── */
+.drop-zone {
+  position: relative;
+  border: 2px dashed rgba(245, 158, 11, 0.3);
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.03);
+  padding: 2.5rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: center;
+  user-select: none;
+  min-height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    border-color: rgba(245, 158, 11, 0.6);
+    background: rgba(245, 158, 11, 0.07);
+  }
+
+  &.drag-over {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12), inset 0 0 40px rgba(245, 158, 11, 0.05);
+    transform: scale(1.01);
+  }
+
+  &.is-uploading {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.05);
+    cursor: wait;
+    pointer-events: none;
+  }
+
+  &.is-uploaded {
+    border-color: rgba(16, 185, 129, 0.5);
+    border-style: solid;
+    background: rgba(16, 185, 129, 0.06);
+  }
+}
+
+.dz-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  animation: fadeSlideIn 0.25s ease;
+}
+
+.dz-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.4));
+}
+
+.dz-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.dz-sub {
+  font-size: 0.82rem;
+  color: #9ca3af;
+}
+
+.dz-hint {
+  font-size: 0.75rem;
+  color: #4b5563;
+  margin-top: 0.1rem;
+}
+
+/* Upload spinner */
+.dz-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+/* Success check */
+.dz-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.25rem;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+
+.dz-change-btn {
+  margin-top: 0.5rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #9ca3af;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #d1d5db;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
